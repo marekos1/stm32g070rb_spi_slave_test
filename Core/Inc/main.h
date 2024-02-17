@@ -26,6 +26,38 @@
 extern "C" {
 #endif
 
+
+#include "types.h"
+#include "config.h"
+
+
+
+#define SYSTEM_HARDWARE_REVISON				1
+
+#define SYSTEM_SOFTWARE_VERSION_MAJOR 		0
+#define SYSTEM_SOFTWARE_VERSION_MINOR 		1
+#define SYSTEM_SOFTWARE_VERSION_REVISION	0
+#define SYSTEM_SOFTWARE_BUILD_NUMBER		0
+
+
+
+
+
+
+
+uint32_t system_ms_time(void);
+
+void system_no_os_waitms(uint32_t delay_ms);
+
+void systick_tick(void);
+
+
+
+
+
+
+
+
 /* Includes ------------------------------------------------------------------*/
 #include "stm32g0xx_hal.h"
 
