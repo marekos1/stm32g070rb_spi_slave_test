@@ -38,6 +38,26 @@ const bool false = 0;
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#if 1
+
+#define TEST1_PIN_UP() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_SET)
+#define TEST1_PIN_DOWN() 	HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET)
+#define TEST1_PIN_TOGGLE()  HAL_GPIO_TogglePin(TEST1_GPIO_Port, TEST1_Pin);
+
+#define TEST2_PIN_UP() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_SET)
+#define TEST2_PIN_DOWN() 	HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET)
+#define TEST2_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin);
+
+#else
+
+#define TEST1_PIN_UP()
+#define TEST1_PIN_DOWN()
+
+#define TEST2_PIN_UP()
+#define TEST2_PIN_DOWN()
+
+#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -68,9 +88,14 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const char *enter_txt = "Start\r\n";
-const char *spi_ok_txt = "SPI ok\r\n";
-const char *spi_err_txt = "SPI ERR!\r\n";
+const char *enter_txt = "S";
+const char *spi_ok_txt = "O";
+const char *spi_err_txt = "E";
+const char *spi_hdr_txt = "H";
+const char *spi_data_txt = "D";
+
+const char *spi_hdr1_txt = "1";
+const char *spi_hdr2_txt = "2";
 /* USER CODE END 0 */
 
 #if 0
@@ -100,41 +125,60 @@ static const uint32_t msz_t200_rx_buffer_size = msz_t200_header_size + msz_t200_
 #endif
 
 
-static uint8_t aTxBuffer[MSZ_T200_BUFFER_SIZE], aRxBuffer[MSZ_T200_BUFFER_SIZE];
-static uint8_t spi_tra_ctr = 0;
-static uint8_t spi_tra_err_ctr = 0;
+//static uint8_t msz_t200_recv_buf[MSZ_T200_BUFFER_SIZE];
+//static uint8_t msz_t200_send_buf[MSZ_T200_BUFFER_SIZE];
 
-static uint32_t msz_t200_spi_get_reg_addr_from_header(uint8_t *header_data) {
+
+static uint32_t msz_t200_spi_get_32bdata_value(const uint8_t *data) {
+
+	uint32_t								_32bdata_value = 0;
+
+	_32bdata_value |= (uint32_t)(*(data + 0) << 24);
+	_32bdata_value |= (uint32_t)(*(data + 1) << 16);
+	_32bdata_value |= (uint32_t)(*(data + 2) << 8);
+	_32bdata_value |= (uint32_t)(*(data + 3) << 0);
+
+	return _32bdata_value;
+}
+
+static uint32_t msz_t200_spi_get_reg_addr(const uint8_t *data) {
 
 	uint32_t								reg_addr = 0;
 
+	reg_addr = msz_t200_spi_get_32bdata_value(data + 2);
+	reg_addr &= 0x00FFFFFF;
 
 	return reg_addr;
 }
 
-static bool msz_t200_spi_is_write_operation(uint8_t *header_data) {
+static bool msz_t200_spi_is_write_operation(const uint8_t *data) {
 
 	bool									wr_operation = false;
 
+	if (*(data + 6) == 0x80) {
+		wr_operation = true;
+	}
 
 	return wr_operation;
 }
 
-static uint8_t msz_t200_spi_get_number_of_operations(uint8_t *header_data) {
+static uint8_t msz_t200_spi_get_count_of_operations(const uint8_t *data) {
 
 	uint8_t									number_of_operation = 0;
 
+	number_of_operation = *(data + 7);
 
 	return number_of_operation;
 }
 
-uint32_t msz_t200_crc32_calc() {
+static uint32_t msz_t200_spi_get_crc32(uint8_t *data) {
 
-	return 0;
+	uint32_t								crc32;
+
+	crc32 = msz_t200_spi_get_32bdata_value(data);
+
+	return crc32;
 }
-
-
-
 
 static HAL_StatusTypeDef my_SPI_WaitFifoStateUntilTimeout(SPI_HandleTypeDef *hspi,
 		uint32_t Fifo, uint32_t State, uint32_t Timeout, uint32_t Tickstart) {
@@ -260,81 +304,51 @@ static HAL_StatusTypeDef my_SPI_WaitFlagStateUntilTimeout(SPI_HandleTypeDef *hsp
 	return HAL_OK;
 }
 
-static HAL_StatusTypeDef my_SPI_EndRxTxTransaction(SPI_HandleTypeDef *hspi,
-		uint32_t Timeout, uint32_t Tickstart) {
+static HAL_StatusTypeDef my_SPI_End_RxTxTransaction(SPI_HandleTypeDef *hspi, uint32_t Timeout, uint32_t Tickstart) {
+
 	/* Control if the TX fifo is empty */
-	if (my_SPI_WaitFifoStateUntilTimeout(hspi, SPI_FLAG_FTLVL, SPI_FTLVL_EMPTY,
-			Timeout, Tickstart) != HAL_OK) {
+	if (my_SPI_WaitFifoStateUntilTimeout(hspi, SPI_FLAG_FTLVL, SPI_FTLVL_EMPTY,	Timeout, Tickstart) != HAL_OK) {
 		SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+		__HAL_SPI_DISABLE(hspi);
 		return HAL_TIMEOUT;
 	}
 
 	/* Control the BSY flag */
-	if (my_SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_BSY, RESET, Timeout,
-			Tickstart) != HAL_OK) {
+	if (my_SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_BSY, RESET, Timeout, Tickstart) != HAL_OK) {
 		SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+		__HAL_SPI_DISABLE(hspi);
 		return HAL_TIMEOUT;
 	}
 
 	/* Control if the RX fifo is empty */
-	if (my_SPI_WaitFifoStateUntilTimeout(hspi, SPI_FLAG_FRLVL, SPI_FRLVL_EMPTY,
-			Timeout, Tickstart) != HAL_OK) {
+	if (my_SPI_WaitFifoStateUntilTimeout(hspi, SPI_FLAG_FRLVL, SPI_FRLVL_EMPTY,	Timeout, Tickstart) != HAL_OK) {
 		SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+		__HAL_SPI_DISABLE(hspi);
 		return HAL_TIMEOUT;
 	}
+	__HAL_SPI_DISABLE(hspi);
 
 	return HAL_OK;
 }
 
+static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, uint32_t *tickstart) {
 
+	HAL_StatusTypeDef 						errorcode = HAL_OK;
+	HAL_SPI_StateTypeDef					tmp_state;
+	uint32_t 								tmp_mode;
 
-
-static HAL_StatusTypeDef my_HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi,
-		uint8_t *pTxData, uint8_t *pRxData, uint16_t Size, uint32_t Timeout) {
-	uint16_t initial_TxXferCount;
-	uint32_t tmp_mode;
-	HAL_SPI_StateTypeDef tmp_state;
-	uint32_t tickstart;
-#if (USE_SPI_CRC != 0U)
-  __IO uint32_t tmpreg = 0U;
-  uint32_t             spi_cr1;
-  uint32_t             spi_cr2;
-  __IO uint8_t  *ptmpreg8;
-  __IO uint8_t  tmpreg8 = 0;
-#endif /* USE_SPI_CRC */
-
-	/* Variable used to alternate Rx and Tx during transfer */
-	uint32_t txallowed = 1U;
-	HAL_StatusTypeDef errorcode = HAL_OK;
-
-	/* Check Direction parameter */
 	assert_param(IS_SPI_DIRECTION_2LINES(hspi->Init.Direction));
 
-	/* Process Locked */
-	__HAL_LOCK(hspi);
-
 	/* Init tickstart for timeout management*/
-	tickstart = HAL_GetTick();
+	*tickstart = HAL_GetTick();
 
 	/* Init temporary variables */
 	tmp_state = hspi->State;
 	tmp_mode = hspi->Init.Mode;
-	initial_TxXferCount = Size;
-#if (USE_SPI_CRC != 0U)
-  spi_cr1             = READ_REG(hspi->Instance->CR1);
-  spi_cr2             = READ_REG(hspi->Instance->CR2);
-#endif /* USE_SPI_CRC */
 
-	if (!((tmp_state == HAL_SPI_STATE_READY)
-			|| ((tmp_mode == SPI_MODE_MASTER)
-					&& (hspi->Init.Direction == SPI_DIRECTION_2LINES)
-					&& (tmp_state == HAL_SPI_STATE_BUSY_RX)))) {
+
+	if (!((tmp_state == HAL_SPI_STATE_READY) || ((tmp_mode == SPI_MODE_MASTER) && (hspi->Init.Direction == SPI_DIRECTION_2LINES) && (tmp_state == HAL_SPI_STATE_BUSY_RX)))) {
 		errorcode = HAL_BUSY;
-		goto error;
-	}
-
-	if ((pTxData == NULL) || (pRxData == NULL) || (Size == 0U)) {
-		errorcode = HAL_ERROR;
 		goto error;
 	}
 
@@ -343,35 +357,11 @@ static HAL_StatusTypeDef my_HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi,
 		hspi->State = HAL_SPI_STATE_BUSY_TX_RX;
 	}
 
-	/* Set the transaction information */
-	hspi->ErrorCode = HAL_SPI_ERROR_NONE;
-	hspi->pRxBuffPtr = (uint8_t*) pRxData;
-	hspi->RxXferCount = Size;
-	hspi->RxXferSize = Size;
-	hspi->pTxBuffPtr = (uint8_t*) pTxData;
-	hspi->TxXferCount = Size;
-	hspi->TxXferSize = Size;
-
-	/*Init field not used in handle to zero */
-	hspi->RxISR = NULL;
-	hspi->TxISR = NULL;
-
-#if (USE_SPI_CRC != 0U)
-  /* Reset CRC Calculation */
-  if (hspi->Init.CRCCalculation == SPI_CRCCALCULATION_ENABLE)
-  {
-    SPI_RESET_CRC(hspi);
-  }
-#endif /* USE_SPI_CRC */
+	error: hspi->State = HAL_SPI_STATE_READY;
 
 	/* Set the Rx Fifo threshold */
-	if (hspi->Init.DataSize > SPI_DATASIZE_8BIT) {
-		/* Set fiforxthreshold according the reception data length: 16bit */
-		CLEAR_BIT(hspi->Instance->CR2, SPI_RXFIFO_THRESHOLD);
-	} else {
 		/* Set fiforxthreshold according the reception data length: 8bit */
-		SET_BIT(hspi->Instance->CR2, SPI_RXFIFO_THRESHOLD);
-	}
+	SET_BIT(hspi->Instance->CR2, SPI_RXFIFO_THRESHOLD);
 
 	/* Check if the SPI is already enabled */
 	if ((hspi->Instance->CR1 & SPI_CR1_SPE) != SPI_CR1_SPE) {
@@ -379,312 +369,198 @@ static HAL_StatusTypeDef my_HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi,
 		__HAL_SPI_ENABLE(hspi);
 	}
 
-	/* Transmit and Receive data in 16 Bit mode */
-	if (hspi->Init.DataSize > SPI_DATASIZE_8BIT) {
-		if ((hspi->Init.Mode == SPI_MODE_SLAVE)
-				|| (initial_TxXferCount == 0x01U)) {
-			hspi->Instance->DR = *((uint16_t*) hspi->pTxBuffPtr);
-			hspi->pTxBuffPtr += sizeof(uint16_t);
-			hspi->TxXferCount--;
-		}
-		while ((hspi->TxXferCount > 0U) || (hspi->RxXferCount > 0U)) {
-			/* Check TXE flag */
-			if ((__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_TXE))
-					&& (hspi->TxXferCount > 0U) && (txallowed == 1U)) {
-				hspi->Instance->DR = *((uint16_t*) hspi->pTxBuffPtr);
-				hspi->pTxBuffPtr += sizeof(uint16_t);
-				hspi->TxXferCount--;
-				/* Next Data is a reception (Rx). Tx not allowed */
-				txallowed = 0U;
-
-#if (USE_SPI_CRC != 0U)
-        /* Enable CRC Transmission */
-        if ((hspi->TxXferCount == 0U) && (hspi->Init.CRCCalculation == SPI_CRCCALCULATION_ENABLE))
-        {
-          /* Set NSS Soft to received correctly the CRC on slave mode with NSS pulse activated */
-          if ((READ_BIT(spi_cr1, SPI_CR1_MSTR) == 0U) && (READ_BIT(spi_cr2, SPI_CR2_NSSP) == SPI_CR2_NSSP))
-          {
-            SET_BIT(hspi->Instance->CR1, SPI_CR1_SSM);
-          }
-          SET_BIT(hspi->Instance->CR1, SPI_CR1_CRCNEXT);
-        }
-#endif /* USE_SPI_CRC */
-			}
-
-			/* Check RXNE flag */
-			if ((__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE))
-					&& (hspi->RxXferCount > 0U)) {
-				*((uint16_t*) hspi->pRxBuffPtr) = (uint16_t) hspi->Instance->DR;
-				hspi->pRxBuffPtr += sizeof(uint16_t);
-				hspi->RxXferCount--;
-				/* Next Data is a Transmission (Tx). Tx is allowed */
-				txallowed = 1U;
-			}
-			if (((HAL_GetTick() - tickstart) >= Timeout)
-					&& (Timeout != HAL_MAX_DELAY)) {
-				errorcode = HAL_TIMEOUT;
-				goto error;
-			}
-		}
-	}
-	/* Transmit and Receive data in 8 Bit mode */
-	else {
-		if ((hspi->Init.Mode == SPI_MODE_SLAVE)
-				|| (initial_TxXferCount == 0x01U)) {
-			*((__IO uint8_t*) &hspi->Instance->DR) = (*hspi->pTxBuffPtr);
-			hspi->pTxBuffPtr += sizeof(uint8_t);
-			hspi->TxXferCount--;
-		}
-		while ((hspi->TxXferCount > 0U) || (hspi->RxXferCount > 0U)) {
-			/* Check TXE flag */
-			if ((__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_TXE))
-					&& (hspi->TxXferCount > 0U) && (txallowed == 1U)) {
-				*(__IO uint8_t*) &hspi->Instance->DR = (*hspi->pTxBuffPtr);
-				hspi->pTxBuffPtr++;
-				hspi->TxXferCount--;
-				/* Next Data is a reception (Rx). Tx not allowed */
-				txallowed = 0U;
-
-#if (USE_SPI_CRC != 0U)
-        /* Enable CRC Transmission */
-        if ((hspi->TxXferCount == 0U) && (hspi->Init.CRCCalculation == SPI_CRCCALCULATION_ENABLE))
-        {
-          /* Set NSS Soft to received correctly the CRC on slave mode with NSS pulse activated */
-          if ((READ_BIT(spi_cr1, SPI_CR1_MSTR) == 0U) && (READ_BIT(spi_cr2, SPI_CR2_NSSP) == SPI_CR2_NSSP))
-          {
-            SET_BIT(hspi->Instance->CR1, SPI_CR1_SSM);
-          }
-          SET_BIT(hspi->Instance->CR1, SPI_CR1_CRCNEXT);
-        }
-#endif /* USE_SPI_CRC */
-			}
-
-			/* Wait until RXNE flag is reset */
-			if ((__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE))
-					&& (hspi->RxXferCount > 0U)) {
-				(*(uint8_t*) hspi->pRxBuffPtr) =
-						*(__IO uint8_t*) &hspi->Instance->DR;
-				hspi->pRxBuffPtr++;
-				hspi->RxXferCount--;
-				/* Next Data is a Transmission (Tx). Tx is allowed */
-				txallowed = 1U;
-			}
-			if ((((HAL_GetTick() - tickstart) >= Timeout)
-					&& ((Timeout != HAL_MAX_DELAY))) || (Timeout == 0U)) {
-				errorcode = HAL_TIMEOUT;
-				goto error;
-			}
-		}
-	}
-
-#if (USE_SPI_CRC != 0U)
-  /* Read CRC from DR to close CRC calculation process */
-  if (hspi->Init.CRCCalculation == SPI_CRCCALCULATION_ENABLE)
-  {
-    /* Wait until TXE flag */
-    if (SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_RXNE, SET, Timeout, tickstart) != HAL_OK)
-    {
-      /* Error on the CRC reception */
-      SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_CRC);
-      errorcode = HAL_TIMEOUT;
-      goto error;
-    }
-    /* Read CRC */
-    if (hspi->Init.DataSize == SPI_DATASIZE_16BIT)
-    {
-      /* Read 16bit CRC */
-      tmpreg = READ_REG(hspi->Instance->DR);
-      /* To avoid GCC warning */
-      UNUSED(tmpreg);
-    }
-    else
-    {
-      /* Initialize the 8bit temporary pointer */
-      ptmpreg8 = (__IO uint8_t *)&hspi->Instance->DR;
-      /* Read 8bit CRC */
-      tmpreg8 = *ptmpreg8;
-      /* To avoid GCC warning */
-      UNUSED(tmpreg8);
-
-      if (hspi->Init.CRCLength == SPI_CRC_LENGTH_16BIT)
-      {
-        if (SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_RXNE, SET, Timeout, tickstart) != HAL_OK)
-        {
-          /* Error on the CRC reception */
-          SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_CRC);
-          errorcode = HAL_TIMEOUT;
-          goto error;
-        }
-        /* Read 8bit CRC again in case of 16bit CRC in 8bit Data mode */
-        tmpreg8 = *ptmpreg8;
-        /* To avoid GCC warning */
-        UNUSED(tmpreg8);
-      }
-    }
-  }
-
-  /* Check if CRC error occurred */
-  if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_CRCERR))
-  {
-    SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_CRC);
-    /* Clear CRC Flag */
-    __HAL_SPI_CLEAR_CRCERRFLAG(hspi);
-
-    errorcode = HAL_ERROR;
-  }
-#endif /* USE_SPI_CRC */
-
-	/* Check the end of the transaction */
-	if (my_SPI_EndRxTxTransaction(hspi, Timeout, tickstart) != HAL_OK) {
-		errorcode = HAL_ERROR;
-		hspi->ErrorCode = HAL_SPI_ERROR_FLAG;
-	}
-
-	error: hspi->State = HAL_SPI_STATE_READY;
-	__HAL_UNLOCK(hspi);
 	return errorcode;
 }
 
+static uint8_t msz_t200_spi_byte_transfer(SPI_HandleTypeDef *hspi, const uint8_t data_write) {
 
+	uint8_t									data_read;
+	bool									tx, rx;
 
-
-
-
-
-
-
-
-
-void msz_t200_spi_operation(void) {
-
-	uint32_t								i, reg_addr, byte_total;
-	bool									wr_operation;
-	uint8_t									number_of_operation;
-	HAL_StatusTypeDef 						hal_rc;
-
-
-#if 0
-
-	byte_total = 0;
-
-	for (i = byte_total; i < MSZ_T200_HEADER_SIZE; i++) {
-		aTxBuffer[i] = 0x77;
-	}
-	hal_rc = HAL_SPI_Receive(&hspi1, &aRxBuffer[byte_total], MSZ_T200_HEADER_SIZE, 5000);
-	byte_total += MSZ_T200_HEADER_SIZE;
-
-	for (i = byte_total; i < byte_total + MSZ_T200_DUMMY_SIZE; i++) {
-		aTxBuffer[i] = 0xAA;
-	}
-	hal_rc = HAL_SPI_Receive(&hspi1, &aRxBuffer[byte_total], MSZ_T200_DUMMY_SIZE, 5000);
-	byte_total += MSZ_T200_DUMMY_SIZE;
-
-	for (i = byte_total; i < byte_total + 4; i++) {
-		aTxBuffer[i] = 0x55;
-	}
-	hal_rc = HAL_SPI_Receive(&hspi1, &aRxBuffer[byte_total], 4, 5000);
-	byte_total += 4;
-
-	for (i = byte_total; i < byte_total + MSZ_T200_CRC32_SIZE; i++) {
-		aTxBuffer[i] = 0x88;
-	}
-	hal_rc = HAL_SPI_Receive(&hspi1, &aRxBuffer[byte_total], MSZ_T200_CRC32_SIZE, 5000);
-	byte_total += MSZ_T200_CRC32_SIZE;
-
-	for (i = 0; i < byte_total; i++) {
-		aTxBuffer[i] = aRxBuffer[i];
-		hal_rc = HAL_SPI_TransmitReceive(&hspi1, aTxBuffer, aRxBuffer,byte_total, 5000);
-	}
-
-#elif 1
-	byte_total = 0;
-
-	for (i = byte_total; i < MSZ_T200_HEADER_SIZE; i++) {
-		aTxBuffer[i] = 0x77;
-	}
-	byte_total += MSZ_T200_HEADER_SIZE;
-
-	for (i = byte_total; i < byte_total + MSZ_T200_DUMMY_SIZE; i++) {
-		aTxBuffer[i] = 0xAA;
-	}
-	byte_total += MSZ_T200_DUMMY_SIZE;
-
-	for (i = byte_total; i < byte_total + 4; i++) {
-		aTxBuffer[i] = 0x55;
-	}
-	byte_total += 4;
-
-	for (i = byte_total; i < byte_total + MSZ_T200_CRC32_SIZE; i++) {
-		aTxBuffer[i] = 0x88;
-	}
-	byte_total += MSZ_T200_CRC32_SIZE;
-
-	hal_rc = my_HAL_SPI_TransmitReceive(&hspi1, aTxBuffer, aRxBuffer, byte_total, 5000);
-
-	if (hal_rc == HAL_OK) {
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-		HAL_UART_Transmit(&huart2, (const uint8_t*) spi_ok_txt,
-				strlen(enter_txt), 1000);
-		spi_tra_ctr++;
-	} else {
-		HAL_UART_Transmit(&huart2, (const uint8_t*) spi_err_txt,
-				strlen(enter_txt), 1000);
-		spi_tra_err_ctr++;
-	}
-#elif 1
-	hal_rc = HAL_SPI_TransmitReceive(&hspi1, aTxBuffer, aRxBuffer, byte_total, 5000);
-	if (hal_rc == HAL_OK) {
-		bool ok;
-		ok = false;
-		if ((aRxBuffer[0] == MSZ_T200_HEADER_FIRST_BYTE) && (aRxBuffer[1] == MSZ_T200_HEADER_SECOND_BYTE)) {
-			reg_addr = msz_t200_spi_get_reg_addr_from_header(aRxBuffer);
-			wr_operation = msz_t200_spi_is_write_operation(aRxBuffer);
-			number_of_operation = msz_t200_spi_get_number_of_operations(aRxBuffer);
-			if (reg_addr < MSZ_T200_REGISTER_NUMBER) {
-				if (number_of_operation < MSZ_T200_SINGLE_OPERATION_WORD_LENGTH_MAX) {
-					ok = true;
-				}
-			}
-		} else {
-			spi_tra_err_ctr++;
+	tx = false;
+	rx = false;
+	do {
+		if ((tx == false) && __HAL_SPI_GET_FLAG(hspi, SPI_FLAG_TXE)) {
+			*((__IO uint8_t*) &hspi->Instance->DR) = data_write;
+			tx = true;
 		}
+
+		if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE)) {
+			data_read = *(__IO uint8_t*) &hspi->Instance->DR;
+			rx = true;
+		}
+		//tutaj dodać sprawdzenie błedów
+	} while ((tx == false) || (rx == false));
+
+	return data_read;
+}
+
+static void msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, uint8_t *data_write, uint8_t *data_read, const uint32_t data_write_length) {
+
+	uint32_t								byte_no;
+
+	if (data_write) {
+		for (byte_no = 0; byte_no < data_write_length; byte_no++) {
+			*(data_read + byte_no) = msz_t200_spi_byte_transfer(hspi, *(data_write + byte_no));
+		}
+	} else {
+		for (byte_no = 0; byte_no < data_write_length; byte_no++) {
+			*(data_read + byte_no) = msz_t200_spi_byte_transfer(hspi, 0xFF);
+		}
+	}
+}
+
+static uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
+
+	uint32_t								crc32 = 0;
+	uint32_t								byte_no;
+
+	for (byte_no = 0; byte_no < data_len; byte_no++) {
+		crc32 += *(data + byte_no);
+	}
+
+	return crc32;
+}
+
+static uint32_t msz_t200_spi_recv_header_const_value(SPI_HandleTypeDef *hspi, uint8_t *data_read) {
+
+	uint32_t								read_bytes_idx;
+
+	read_bytes_idx = 0;
+	while (1) {
+		*(data_read + read_bytes_idx) = msz_t200_spi_byte_transfer(hspi, 0xFF);
+		if ((*(data_read + read_bytes_idx) == 0x4D) && (read_bytes_idx == 0)) {
+		//	HAL_UART_Transmit(&huart2, (const uint8_t*) spi_hdr1_txt, strlen(spi_hdr1_txt), 1000);
+			read_bytes_idx++;
+		} else if ((*(data_read + read_bytes_idx) == 0xD3) && (read_bytes_idx == 1)) {
+		//	HAL_UART_Transmit(&huart2, (const uint8_t*) spi_hdr2_txt, strlen(spi_hdr2_txt), 1000);
+			read_bytes_idx++;
+			break;
+		}
+	}
+
+	return read_bytes_idx;
+}
+
+static uint32_t msz_t200_spi_recv_header_variable_value(SPI_HandleTypeDef *hspi, uint8_t *data_read) {
+
+	uint32_t								read_bytes_idx = 6;
+
+	msz_t200_spi_data_transfer(hspi, NULL, data_read, read_bytes_idx);
+
+	return read_bytes_idx;
+}
+
+static bool msz_t200_spi_validate_header(const uint8_t *header_data) {
+
+	bool									header_ok = false;
+
+	if ((*(header_data + 0) == 0x4D) && (*(header_data + 1) == 0xD3)) {
+		if ((*(header_data + 2) == 0x00) && (*(header_data + 3) == 0x45) && (*(header_data + 4) == 0x67) && (*(header_data + 5) == 0x89) && (*(header_data + 7) == 0x01)) {
+			header_ok = true;
+		}
+	}
+
+	return header_ok;
+}
+
+static void msz_t200_spi_write_registers(const uint32_t reg_addr, const uint8_t *data, const uint8_t reg_count) {
+
+}
+
+static void msz_t200_spi_read_registers(const uint32_t reg_addr, uint8_t *data, const uint8_t reg_count) {
+
+	uint8_t									i;
+
+	for (i = 0; i < (reg_count * 4 + 4); i++) {
+		*(data + i) = 0xD1 + i;
+	}
+}
+
+static void msz_t200_spi_do_write_operation(const uint8_t *data, const uint32_t data_length) {
+
+	uint32_t								reg_addr;
+	uint8_t									operation_count;
+
+	reg_addr = msz_t200_spi_get_reg_addr(data);
+	operation_count = msz_t200_spi_get_count_of_operations(data);
+	msz_t200_spi_write_registers(reg_addr, data, operation_count);
+}
+
+static uint32_t msz_t200_spi_handle_write_operation(SPI_HandleTypeDef *hspi, uint8_t *data, const uint32_t read_bytes_idx) {
+
+	uint32_t								read_data_bytes = read_bytes_idx;
+	uint32_t								recv_crc32, calc_crc32;
+
+	msz_t200_spi_data_transfer(hspi, NULL, data + read_data_bytes, 8);
+	read_data_bytes += 8;
+
+	recv_crc32 = msz_t200_spi_get_crc32(data + read_data_bytes - 4);
+	calc_crc32 = msz_t200_crc32_calc(data, read_data_bytes - 4);
+	if (recv_crc32 == calc_crc32) {
+
+	} else {
+		read_data_bytes = 0;
+	}
+
+	return read_data_bytes;
+}
+
+static uint32_t msz_t200_spi_handle_read_operation(SPI_HandleTypeDef *hspi, uint8_t *data, const uint32_t read_bytes_idx) {
+
+	uint32_t								reg_addr;
+	uint8_t									operation_count, data_to_send[128];
+
+	reg_addr = msz_t200_spi_get_reg_addr(data);
+	operation_count = msz_t200_spi_get_count_of_operations(data);
+	msz_t200_spi_read_registers(reg_addr, data_to_send, operation_count);
+	msz_t200_spi_data_transfer(hspi, data_to_send, data + read_bytes_idx, 8);
+
+	return 0;
+}
+
+static void msz_t200_spi_operation(SPI_HandleTypeDef *hspi) {
+
+	uint32_t								read_bytes_idx, read_data_bytes;
+	uint8_t									read_bytes[20];
+	uint32_t								tickstart;
+	bool 									ok = false;
+	bool									wr_operation;
+
+	HAL_UART_Transmit(&huart2, (const uint8_t*) enter_txt, strlen(enter_txt), 1000);
+	TEST1_PIN_UP();
+	my_SPI_Start_RxTxTransaction(hspi, &tickstart);
+	read_bytes_idx = msz_t200_spi_recv_header_const_value(hspi, &read_bytes[0]);
+	if (read_bytes_idx == 2) {
+		read_bytes_idx += msz_t200_spi_recv_header_variable_value(hspi, &read_bytes[read_bytes_idx]);
+		ok = msz_t200_spi_validate_header(&read_bytes[0]);
 		if (ok) {
-			for (i = MSZ_T200_HEADER_SIZE; i < MSZ_T200_DUMMY_SIZE; i++) {
-				aTxBuffer[i] = 0x00;
-			}
-			byte_total = MSZ_T200_HEADER_SIZE + MSZ_T200_DUMMY_SIZE + number_of_operation * 4;
+			wr_operation = msz_t200_spi_is_write_operation(&read_bytes[0]);
 			if (wr_operation) {
-				for (i = MSZ_T200_HEADER_SIZE + MSZ_T200_DUMMY_SIZE; i < byte_total; i++) {
-					aTxBuffer[i] = 0xFF;
+				read_data_bytes = msz_t200_spi_handle_write_operation(hspi, &read_bytes[0], read_bytes_idx);
+				if (read_data_bytes > read_bytes_idx) {
+					read_bytes_idx = read_data_bytes;
+					msz_t200_spi_do_write_operation(&read_bytes[0], read_bytes_idx);
+					ok = true;
+				} else {
+					ok = false;
 				}
 			} else {
-				for (i = MSZ_T200_HEADER_SIZE + MSZ_T200_DUMMY_SIZE; i < byte_total; i++) {
-					aTxBuffer[i] = 0x77;
-				}
+				msz_t200_spi_handle_read_operation(hspi, &read_bytes[0], read_bytes_idx);
+				ok = true;
 			}
-			for (i = byte_total; i < byte_total + MSZ_T200_CRC32_SIZE; i++) {
-				aTxBuffer[i] = 0x55;
-			}
-			hal_rc = HAL_SPI_TransmitReceive(&hspi1, &aTxBuffer[MSZ_T200_HEADER_SIZE], &aRxBuffer[MSZ_T200_HEADER_SIZE], byte_total + MSZ_T200_CRC32_SIZE, 5000);
+
 		} else {
-			aTxBuffer[MSZ_T200_HEADER_SIZE] = 0xAA;
-			hal_rc = HAL_SPI_TransmitReceive(&hspi1, &aTxBuffer[MSZ_T200_HEADER_SIZE], aRxBuffer, MSZ_T200_BUFFER_SIZE - MSZ_T200_HEADER_SIZE, 5000);
+			ok = false;
 		}
-
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-		HAL_UART_Transmit(&huart2, (const uint8_t*) spi_ok_txt,
-				strlen(enter_txt), 1000);
-		spi_tra_ctr++;
-	} else {
-		HAL_UART_Transmit(&huart2, (const uint8_t*) spi_err_txt,
-				strlen(enter_txt), 1000);
-		spi_tra_err_ctr++;
 	}
-#endif
-
-
-
-
+	if (ok == false) {
+		if (my_SPI_End_RxTxTransaction(hspi, 1, tickstart) != HAL_OK) {
+			hspi1.ErrorCode = HAL_SPI_ERROR_FLAG;
+		}
+	}
+	TEST1_PIN_DOWN();
+	HAL_UART_Transmit(&huart2, (const uint8_t*) spi_hdr_txt, strlen(spi_hdr_txt), 1000);
 }
 
 
@@ -731,7 +607,7 @@ int main(void) {
 	while (1) {
 		/* USER CODE END WHILE */
 #if 1
-		msz_t200_spi_operation();
+		msz_t200_spi_operation(&hspi1);
 #else
 		spi_slave_init();
 #endif
@@ -905,9 +781,13 @@ static void MX_GPIO_Init(void) {
 
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET);
+
 
 	/*Configure GPIO pin : LED_Pin */
 	GPIO_InitStruct.Pin = LED_Pin;
@@ -915,6 +795,18 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = TEST1_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = TEST2_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	HAL_GPIO_Init(TEST2_GPIO_Port, &GPIO_InitStruct);
 
 }
 
