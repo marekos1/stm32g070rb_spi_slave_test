@@ -49,6 +49,10 @@ const bool false = 0;
 #define TEST2_PIN_DOWN() 	HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET)
 #define TEST2_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin);
 
+#define TEST3_PIN_UP() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_SET)
+#define TEST3_PIN_DOWN() 	HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET)
+#define TEST3_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST3_GPIO_Port, TEST3_Pin);
+
 #else
 
 #define TEST1_PIN_UP()
@@ -139,6 +143,14 @@ static uint32_t msz_t200_spi_get_32bdata_value(const uint8_t *data) {
 	_32bdata_value |= (uint32_t)(*(data + 3) << 0);
 
 	return _32bdata_value;
+}
+
+static void msz_t200_spi_set_32bdata_value(uint8_t *data, const uint32_t value) {
+
+	*(data + 0) = (uint8_t)(value >> 24);
+	*(data + 1) = (uint8_t)(value >> 16);
+	*(data + 2) = (uint8_t)(value >> 8);
+	*(data + 3) = (uint8_t)(value >> 0);
 }
 
 static uint32_t msz_t200_spi_get_reg_addr(const uint8_t *data) {
@@ -372,43 +384,198 @@ static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, u
 	return errorcode;
 }
 
-static uint8_t msz_t200_spi_byte_transfer(SPI_HandleTypeDef *hspi, const uint8_t data_write) {
+typedef enum {
+	MSZ_T200_RC_OK = 0,
+	MSZ_T200_RC_TIMEOUT = -1,
+	MSZ_T200_RC_INV_HEADER = -2,
+	MSZ_T200_RC_ERR = -3,
 
-	uint8_t									data_read;
+} msz_t200_rc_t;
+
+#define MSZ_T200_DUMMY_BYTE 0xFF
+#define MSZ_T200_SUPPORT_TIMEOUT 0
+
+
+static volatile uint32_t spi_busy_ctr;
+static volatile uint32_t spi_over_ctr;
+static volatile uint32_t spi_under_ctr;
+
+
+
+#if 0
+
+static msz_t200_rc_t msz_t200_spi_byte_transfer(SPI_HandleTypeDef *hspi, const uint8_t *data_write, uint8_t *data_read, const uint32_t timeout) {
+
+	msz_t200_rc_t							rc = MSZ_T200_RC_OK;
 	bool									tx, rx;
+#if MSZ_T200_SUPPORT_TIMEOUT
+	uint32_t								end_time = HAL_GetTick() + timeout;
+#else
+	(void)timeout;
+#endif
 
 	tx = false;
 	rx = false;
-	do {
-		if ((tx == false) && __HAL_SPI_GET_FLAG(hspi, SPI_FLAG_TXE)) {
-			*((__IO uint8_t*) &hspi->Instance->DR) = data_write;
+	TEST1_PIN_UP();
+	if (data_write) {
+		if (*data_write == MSZ_T200_DUMMY_BYTE) {
 			tx = true;
 		}
+	} else {
 
-		if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE)) {
-			data_read = *(__IO uint8_t*) &hspi->Instance->DR;
-			rx = true;
+	}
+
+	if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_BSY)) {
+		spi_busy_ctr++;
+	}
+	if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_OVR)) {
+		spi_over_ctr++;
+	}
+	if (__HAL_SPI_GET_FLAG(hspi, SPI_SR_UDR)) {
+		spi_under_ctr++;
+	}
+
+	do {
+		if (tx == false) {
+			if ((hspi->Instance->SR & SPI_SR_FTLVL) == 0) {
+				*((__IO uint8_t*) &hspi->Instance->DR) = *data_write;
+				tx = true;
+			}
 		}
-		//tutaj dodać sprawdzenie błedów
+		if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE)) {
+			TEST2_PIN_UP();
+			*data_read = *(__IO uint8_t*) &hspi->Instance->DR;
+			rx = true;
+			TEST2_PIN_DOWN();
+		}
+#if MSZ_T200_SUPPORT_TIMEOUT
+		if (timeout && (end_time < HAL_GetTick()) && (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_BSY) == 0)) {
+			rc = MSZ_T200_RC_TIMEOUT;
+			break;
+		}
+#endif
 	} while ((tx == false) || (rx == false));
+	TEST1_PIN_DOWN();
 
-	return data_read;
+	return rc;
 }
 
-static void msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, uint8_t *data_write, uint8_t *data_read, const uint32_t data_write_length) {
+static msz_t200_rc_t msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, uint8_t *data_write, uint8_t *data_read, const uint32_t data_write_length, const uint32_t timeout) {
 
+	msz_t200_rc_t							rc = MSZ_T200_RC_OK;
 	uint32_t								byte_no;
+	uint8_t									dummy_data;
 
 	if (data_write) {
-		for (byte_no = 0; byte_no < data_write_length; byte_no++) {
-			*(data_read + byte_no) = msz_t200_spi_byte_transfer(hspi, *(data_write + byte_no));
+		if (data_read) {
+			for (byte_no = 0; byte_no < data_write_length; byte_no++) {
+				rc = msz_t200_spi_byte_transfer(hspi, data_write + byte_no, data_read + byte_no, timeout);
+			}
+		} else {
+			for (byte_no = 0; byte_no < data_write_length; byte_no++) {
+				rc = msz_t200_spi_byte_transfer(hspi, data_write + byte_no, &dummy_data, timeout);
+			}
 		}
 	} else {
-		for (byte_no = 0; byte_no < data_write_length; byte_no++) {
-			*(data_read + byte_no) = msz_t200_spi_byte_transfer(hspi, 0xFF);
+		if (data_read) {
+			for (byte_no = 0; byte_no < data_write_length; byte_no++) {
+				rc = msz_t200_spi_byte_transfer(hspi, NULL, data_read + byte_no, timeout);
+			}
+		} else {
+			for (byte_no = 0; byte_no < data_write_length; byte_no++) {
+				rc = msz_t200_spi_byte_transfer(hspi, NULL, &dummy_data, timeout);
+			}
 		}
 	}
+
+	return rc;
 }
+
+#else
+
+bool test_bsy = false;
+bool test_ovr = false;
+bool test_udr = false;
+bool test_bsy_tx_not_empty = false;
+
+#define TEST_BSY_ON_TEST2_PIN_UP() if (test_bsy) { TEST2_PIN_UP(); }
+#define TEST_OVR_ON_TEST2_PIN_UP() if (test_ovr) { TEST2_PIN_UP(); }
+#define TEST_UDR_ON_TEST2_PIN_UP() if (test_udr) { TEST2_PIN_UP(); }
+
+#define TEST_BSY_TX_NOT_EMPTY_ON_TEST2_PIN_UP() if (test_bsy_tx_not_empty) { TEST2_PIN_UP(); }
+
+
+static msz_t200_rc_t msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, const uint8_t *data_write, uint8_t *data_read, const uint32_t data_write_length, const uint32_t timeout) {
+
+	msz_t200_rc_t							rc = MSZ_T200_RC_OK;
+//	bool									tx, rx;
+//	uint32_t								end_time = HAL_GetTick() + timeout;
+
+	uint32_t tx_ctr, rx_ctr;
+
+	TEST3_PIN_UP();
+//	tx = false;
+//	rx = false;
+	tx_ctr = 0;
+	rx_ctr = 0;
+
+	if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_BSY)) {
+		if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_TXE) == 0) {
+			TEST_BSY_TX_NOT_EMPTY_ON_TEST2_PIN_UP();
+		} else {
+			TEST_BSY_ON_TEST2_PIN_UP();
+		}
+		spi_busy_ctr++;
+	}
+	if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_OVR)) {
+		TEST_OVR_ON_TEST2_PIN_UP();
+		*(__IO uint8_t*) &hspi->Instance->DR;
+		spi_over_ctr++;
+		rc = MSZ_T200_RC_ERR;
+	}
+	if (__HAL_SPI_GET_FLAG(hspi, SPI_SR_UDR)) {
+		TEST_UDR_ON_TEST2_PIN_UP();
+		spi_under_ctr++;
+	}
+
+	if (rc == MSZ_T200_RC_OK) {
+		do {
+			TEST2_PIN_DOWN();
+			TEST1_PIN_DOWN();
+
+			if (tx_ctr < data_write_length) {
+				if ((hspi->Instance->SR & SPI_SR_FTLVL) == 0) {
+					TEST2_PIN_UP();
+					if (data_write) {
+						*((__IO uint8_t*) &hspi->Instance->DR) = *(data_write + tx_ctr);
+					}
+					tx_ctr++;
+				}
+			}
+
+
+			if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE)) {
+				if (rx_ctr < data_write_length) {
+					TEST1_PIN_UP();
+					*(data_read + rx_ctr) = *(__IO uint8_t*) &hspi->Instance->DR;
+					rx_ctr++;
+				} else {
+					hspi->Instance->DR;
+				}
+			}
+
+
+		} while ((tx_ctr < data_write_length) || (rx_ctr < data_write_length));
+	}
+
+	TEST1_PIN_DOWN();
+	TEST2_PIN_DOWN();
+	TEST3_PIN_DOWN();
+
+	return rc;
+}
+
+#endif
 
 static uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
 
@@ -425,16 +592,31 @@ static uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
 static uint32_t msz_t200_spi_recv_header_const_value(SPI_HandleTypeDef *hspi, uint8_t *data_read) {
 
 	uint32_t								read_bytes_idx;
+	msz_t200_rc_t							rc;
+	uint8_t									data_tx = 0xAA;
 
 	read_bytes_idx = 0;
 	while (1) {
-		*(data_read + read_bytes_idx) = msz_t200_spi_byte_transfer(hspi, 0xFF);
-		if ((*(data_read + read_bytes_idx) == 0x4D) && (read_bytes_idx == 0)) {
-		//	HAL_UART_Transmit(&huart2, (const uint8_t*) spi_hdr1_txt, strlen(spi_hdr1_txt), 1000);
-			read_bytes_idx++;
-		} else if ((*(data_read + read_bytes_idx) == 0xD3) && (read_bytes_idx == 1)) {
-		//	HAL_UART_Transmit(&huart2, (const uint8_t*) spi_hdr2_txt, strlen(spi_hdr2_txt), 1000);
-			read_bytes_idx++;
+		rc = msz_t200_spi_data_transfer(hspi, &data_tx, data_read + read_bytes_idx, 1, 0);
+		if (rc == MSZ_T200_RC_OK) {
+			if (read_bytes_idx == 0) {
+				if (*(data_read + read_bytes_idx) == 0x4D) {
+					read_bytes_idx++;
+					data_tx++;
+				} else {
+					break;
+				}
+			} else if (read_bytes_idx == 1) {
+				if (*(data_read + read_bytes_idx) == 0xD3) {
+					read_bytes_idx++;
+					break;
+				} else {
+					break;
+				}
+			} else {
+				break;
+			}
+		} else {
 			break;
 		}
 	}
@@ -445,60 +627,80 @@ static uint32_t msz_t200_spi_recv_header_const_value(SPI_HandleTypeDef *hspi, ui
 static uint32_t msz_t200_spi_recv_header_variable_value(SPI_HandleTypeDef *hspi, uint8_t *data_read) {
 
 	uint32_t								read_bytes_idx = 6;
+	uint8_t									data_tx[6] = {0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6};
+	msz_t200_rc_t							rc;
 
-	msz_t200_spi_data_transfer(hspi, NULL, data_read, read_bytes_idx);
+	rc = msz_t200_spi_data_transfer(hspi, data_tx, data_read, read_bytes_idx, 3);
+	if (rc == MSZ_T200_RC_OK) {
+		read_bytes_idx = 6;
+	} else {
+		read_bytes_idx = 0;
+	}
 
 	return read_bytes_idx;
 }
 
-static bool msz_t200_spi_validate_header(const uint8_t *header_data) {
+static bool msz_t200_spi_validate_header(const uint8_t *header_data, const uint32_t header_read_length) {
 
-	bool									header_ok = false;
+	bool									header_ok = true;
 
-	if ((*(header_data + 0) == 0x4D) && (*(header_data + 1) == 0xD3)) {
-		if ((*(header_data + 2) == 0x00) && (*(header_data + 3) == 0x45) && (*(header_data + 4) == 0x67) && (*(header_data + 5) == 0x89) && (*(header_data + 7) == 0x01)) {
-			header_ok = true;
-		}
+	if (header_read_length != 8) {
+		header_ok = false;
+	} else if ((*(header_data + 0) != 0x4D) || (*(header_data + 1) != 0xD3)) {
+		header_ok = false;
 	}
+	//TODO dodac inne warunki
 
 	return header_ok;
 }
 
-static void msz_t200_spi_write_registers(const uint32_t reg_addr, const uint8_t *data, const uint8_t reg_count) {
+uint32_t reg_00456789 = 0xAAAAAAAA;
 
-}
+static void msz_t200_spi_write_registers(const uint32_t reg_addr, const uint32_t reg_value, const uint8_t reg_count) {
 
-static void msz_t200_spi_read_registers(const uint32_t reg_addr, uint8_t *data, const uint8_t reg_count) {
-
-	uint8_t									i;
-
-	for (i = 0; i < (reg_count * 4 + 4); i++) {
-		*(data + i) = 0xD1 + i;
+	if (reg_addr == 0x00456789) {
+		reg_00456789 = reg_value;
 	}
 }
 
-static void msz_t200_spi_do_write_operation(const uint8_t *data, const uint32_t data_length) {
+uint32_t read_reg_val = 0xABCDEF01;
 
-	uint32_t								reg_addr;
-	uint8_t									operation_count;
+static void msz_t200_spi_read_registers(const uint32_t reg_addr, uint8_t *data, const uint8_t reg_count) {
 
-	reg_addr = msz_t200_spi_get_reg_addr(data);
-	operation_count = msz_t200_spi_get_count_of_operations(data);
-	msz_t200_spi_write_registers(reg_addr, data, operation_count);
+	if (reg_addr == 0x00456789) {
+		if (reg_count == 1) {
+			msz_t200_spi_set_32bdata_value(data, reg_00456789);
+		} else {
+			msz_t200_spi_set_32bdata_value(data, 0xF0F0F0F0);
+		}
+	} else {
+		msz_t200_spi_set_32bdata_value(data, 0xFEFEFEFE);
+	}
 }
 
-static uint32_t msz_t200_spi_handle_write_operation(SPI_HandleTypeDef *hspi, uint8_t *data, const uint32_t read_bytes_idx) {
+static void msz_t200_spi_do_write_operation(const uint8_t *data, const uint32_t data_length, const uint32_t reg_addr, const uint8_t operation_count) {
+
+
+	uint32_t reg_value = msz_t200_spi_get_32bdata_value(data);
+	msz_t200_spi_write_registers(reg_addr, reg_value, operation_count);
+}
+
+static uint32_t msz_t200_spi_handle_write_operation(SPI_HandleTypeDef *hspi, uint8_t *data, const uint32_t read_bytes_idx, const uint32_t reg_addr, const uint8_t operation_count) {
 
 	uint32_t								read_data_bytes = read_bytes_idx;
 	uint32_t								recv_crc32, calc_crc32;
+	msz_t200_rc_t							rc = MSZ_T200_RC_OK;
 
-	msz_t200_spi_data_transfer(hspi, NULL, data + read_data_bytes, 8);
-	read_data_bytes += 8;
+	rc = msz_t200_spi_data_transfer(hspi, NULL, data + read_data_bytes, 8, 3);
+	if (rc == MSZ_T200_RC_OK) {
+		read_data_bytes += 8;
+		recv_crc32 = msz_t200_spi_get_crc32(data + read_data_bytes - 4);
+		calc_crc32 = msz_t200_crc32_calc(data, read_data_bytes - 4);
+		if (recv_crc32 == calc_crc32) {
 
-	recv_crc32 = msz_t200_spi_get_crc32(data + read_data_bytes - 4);
-	calc_crc32 = msz_t200_crc32_calc(data, read_data_bytes - 4);
-	if (recv_crc32 == calc_crc32) {
-
+		} else {
+			read_data_bytes = 0;
+		}
 	} else {
 		read_data_bytes = 0;
 	}
@@ -506,61 +708,102 @@ static uint32_t msz_t200_spi_handle_write_operation(SPI_HandleTypeDef *hspi, uin
 	return read_data_bytes;
 }
 
-static uint32_t msz_t200_spi_handle_read_operation(SPI_HandleTypeDef *hspi, uint8_t *data, const uint32_t read_bytes_idx) {
+static uint32_t msz_t200_spi_handle_read_operation(SPI_HandleTypeDef *hspi, uint8_t *data, const uint32_t read_bytes_idx, const uint32_t reg_addr, const uint8_t operation_count) {
 
-	uint32_t								reg_addr;
-	uint8_t									operation_count, data_to_send[128];
+	uint32_t								calc_crc32, write_idx = read_bytes_idx;
+	msz_t200_rc_t							rc = MSZ_T200_RC_OK;
 
-	reg_addr = msz_t200_spi_get_reg_addr(data);
-	operation_count = msz_t200_spi_get_count_of_operations(data);
-	msz_t200_spi_read_registers(reg_addr, data_to_send, operation_count);
-	msz_t200_spi_data_transfer(hspi, data_to_send, data + read_bytes_idx, 8);
+	msz_t200_spi_read_registers(reg_addr, data + write_idx, operation_count);
+	write_idx += (4 * operation_count);
+	calc_crc32 = msz_t200_crc32_calc(data, write_idx);
+	msz_t200_spi_set_32bdata_value(data + write_idx, calc_crc32);
+	write_idx += 4;
+	rc = msz_t200_spi_data_transfer(hspi, data + read_bytes_idx, NULL, write_idx - read_bytes_idx, 3);
+	if (rc == MSZ_T200_RC_OK) {
 
-	return 0;
+	} else {
+		write_idx = 0;
+	}
+
+	return write_idx;
 }
 
 static void msz_t200_spi_operation(SPI_HandleTypeDef *hspi) {
 
 	uint32_t								read_bytes_idx, read_data_bytes;
-	uint8_t									read_bytes[20];
+	uint8_t									read_bytes[16 + 32 * 4];
 	uint32_t								tickstart;
 	bool 									ok = false;
 	bool									wr_operation;
+	uint32_t								reg_addr;
+	uint8_t									operation_count;
 
 	HAL_UART_Transmit(&huart2, (const uint8_t*) enter_txt, strlen(enter_txt), 1000);
-	TEST1_PIN_UP();
+
 	my_SPI_Start_RxTxTransaction(hspi, &tickstart);
 	read_bytes_idx = msz_t200_spi_recv_header_const_value(hspi, &read_bytes[0]);
 	if (read_bytes_idx == 2) {
 		read_bytes_idx += msz_t200_spi_recv_header_variable_value(hspi, &read_bytes[read_bytes_idx]);
-		ok = msz_t200_spi_validate_header(&read_bytes[0]);
+		ok = msz_t200_spi_validate_header(&read_bytes[0], read_bytes_idx);
 		if (ok) {
 			wr_operation = msz_t200_spi_is_write_operation(&read_bytes[0]);
-			if (wr_operation) {
-				read_data_bytes = msz_t200_spi_handle_write_operation(hspi, &read_bytes[0], read_bytes_idx);
-				if (read_data_bytes > read_bytes_idx) {
-					read_bytes_idx = read_data_bytes;
-					msz_t200_spi_do_write_operation(&read_bytes[0], read_bytes_idx);
-					ok = true;
+			reg_addr = msz_t200_spi_get_reg_addr(&read_bytes[0]);
+			operation_count = msz_t200_spi_get_count_of_operations(&read_bytes[0]);
+			if (operation_count == 1) {
+				if (wr_operation) {
+					read_data_bytes = msz_t200_spi_handle_write_operation(hspi, &read_bytes[0], read_bytes_idx, reg_addr, operation_count);
+					if (read_data_bytes) {
+						if (read_data_bytes > read_bytes_idx) {
+							read_bytes_idx = read_data_bytes;
+							msz_t200_spi_do_write_operation(&read_bytes[8], read_bytes_idx, reg_addr, operation_count);
+							ok = true;
+						} else {
+							ok = false;
+						}
+					} else {
+						ok = false;
+					}
 				} else {
-					ok = false;
+					read_data_bytes = msz_t200_spi_handle_read_operation(hspi, &read_bytes[0], read_bytes_idx, reg_addr, operation_count);
+					if (read_data_bytes) {
+						ok = true;
+					} else {
+						ok = false;
+					}
 				}
 			} else {
-				msz_t200_spi_handle_read_operation(hspi, &read_bytes[0], read_bytes_idx);
-				ok = true;
+				ok = false;
 			}
-
 		} else {
 			ok = false;
 		}
-	}
-	if (ok == false) {
-		if (my_SPI_End_RxTxTransaction(hspi, 1, tickstart) != HAL_OK) {
-			hspi1.ErrorCode = HAL_SPI_ERROR_FLAG;
+		if (ok == false) {
+			if (my_SPI_End_RxTxTransaction(hspi, 1, tickstart) != HAL_OK) {
+				hspi1.ErrorCode = HAL_SPI_ERROR_FLAG;
+			}
 		}
 	}
-	TEST1_PIN_DOWN();
+
+#if MSZ_T200_SUPPORT_TIMEOUT
+	else if (rc == MSZ_T200_RC_TIMEOUT) {
+
+		SET_BIT(RCC->APBRSTR2, RCC_APBRSTR2_SPI1RST);
+		CLEAR_BIT(RCC->APBRSTR2, RCC_APBRSTR2_SPI1RST);
+
+		HAL_SPI_Init(hspi);
+
+	}
+#endif
+
+
 	HAL_UART_Transmit(&huart2, (const uint8_t*) spi_hdr_txt, strlen(spi_hdr_txt), 1000);
+}
+
+static void msz_t200_spi_clear_rx_fifo(SPI_HandleTypeDef *hspi) {
+
+	do {
+		hspi->Instance->DR;
+	} while(__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE));
 }
 
 
@@ -594,14 +837,34 @@ int main(void) {
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_CRC_Init();
-	MX_SPI1_Init();
+
 	MX_USART2_UART_Init();
 	/* USER CODE BEGIN 2 */
-	HAL_UART_Transmit(&huart2, (const uint8_t*) enter_txt, strlen(enter_txt),
-			1000);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) enter_txt, strlen(enter_txt), 1000);
+
+	/*
+	for (led_ctr = 0; led_ctr < 100; led_ctr++) {
+		TEST3_PIN_UP();
+		//TEST2_PIN_DOWN();
+		HAL_Delay(10);
+		TEST3_PIN_DOWN();
+//		TEST2_PIN_UP();
+		HAL_Delay(10);
+	}
+	*/
+
 	led_ctr = 0;
 	/* USER CODE END 2 */
 
+	MX_SPI1_Init();
+
+	TEST1_PIN_UP();
+	TEST2_PIN_UP();
+	TEST3_PIN_UP();
+	msz_t200_spi_clear_rx_fifo(&hspi1);
+	TEST1_PIN_DOWN();
+	TEST2_PIN_DOWN();
+	TEST3_PIN_DOWN();
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
@@ -787,6 +1050,7 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(LED_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET);
 
 
 	/*Configure GPIO pin : LED_Pin */
@@ -807,6 +1071,12 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(TEST2_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = TEST3_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	HAL_GPIO_Init(TEST3_GPIO_Port, &GPIO_InitStruct);
 
 }
 

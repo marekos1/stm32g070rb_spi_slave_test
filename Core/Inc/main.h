@@ -93,10 +93,14 @@ void Error_Handler(void);
 #define LED_GPIO_Port GPIOA
 
 #define TEST1_GPIO_Port GPIOA
-#define TEST1_Pin GPIO_PIN_0
+#define TEST1_Pin GPIO_PIN_0			//Arduino A0
 
-#define TEST2_GPIO_Port GPIOB
+#define TEST2_GPIO_Port GPIOB			//Arduino A3
 #define TEST2_Pin GPIO_PIN_1
+
+#define TEST3_GPIO_Port GPIOA			//Arduino D7
+#define TEST3_Pin		GPIO_PIN_8
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
