@@ -23,19 +23,19 @@
 
 volatile slave_reg_buf_t slave_main_group_regs[MAIN_SLAVE_REG_NR_MAX];
 
-static const uint16_t slave_main_group_regs_ident_value[6] = {
-		/* 0 */ 0x0001, 													/* - Module ready */
-		/* 1 */ 0x0082, 													/* - Module Type 0x0082 - GPS */
-		/* 2 */ (uint16_t)SYSTEM_HARDWARE_REVISON,							/* - Module Hardware revision */
-		/* 3 */ (uint16_t)SYSTEM_SOFTWARE_VERSION_MINOR, 					/* - Module Firmware revision */
-		/* 4 */ 0x0000, 													/* - Global config */
+static const slave_reg_data_t slave_main_group_regs_ident_value[6] = {
+		/* 0 */ 0x00000001, 													/* - Module ready */
+		/* 1 */ 0x00000082, 													/* - Module Type 0x0082 - GPS */
+		/* 2 */ (slave_reg_data_t)SYSTEM_HARDWARE_REVISON,							/* - Module Hardware revision */
+		/* 3 */ (slave_reg_data_t)SYSTEM_SOFTWARE_VERSION_MINOR, 					/* - Module Firmware revision */
+		/* 4 */ 0x00000000, 													/* - Global config */
 };
 
 
 
-static uint16_t registers_global_conf(slave_reg_data_t new_reg_value) {
+static slave_reg_data_t registers_global_conf(slave_reg_data_t new_reg_value) {
 
-	uint16_t								reg_val = new_reg_value;
+	slave_reg_data_t						reg_val = new_reg_value;
 
 	if (reg_val & (1 << 0)) {
 		NVIC_SystemReset();
@@ -43,6 +43,19 @@ static uint16_t registers_global_conf(slave_reg_data_t new_reg_value) {
 	}
 	if (reg_val & (1 << 1)) {
 		reg_val &= ~(1 << 0);	/* Self cleared bit */
+	}
+
+	return reg_val;
+}
+
+static slave_reg_data_t registers_unit1_output_state_change(slave_reg_data_t new_reg_value) {
+
+	slave_reg_data_t						reg_val = new_reg_value;
+
+	if (reg_val) {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	} else {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 	}
 
 	return reg_val;
@@ -70,6 +83,8 @@ static void main_group_slave_regs_init(volatile slave_reg_buf_t *main_group_regs
 	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT2_STATUS), 0, FALSE, TRUE, FALSE);
 	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT3_STATUS), 0, FALSE, TRUE, FALSE);
 	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT4_STATUS), 0, FALSE, TRUE, FALSE);
+
+	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE), 0, TRUE, TRUE, FALSE);
 }
 
 
@@ -109,6 +124,8 @@ BOOL main_group_slave_regs_req(slave_regs_poll_func_req_t req, uint16_t reg_addr
 	case SLAVE_REGS_POLL_FUNC_REQ_WRITE:
 		if (reg_addr == MAIN_SLAVE_REG_MODULE_GLOBAL_CONFIG) {
 			slave_registers_write(&slave_main_group_regs[MAIN_SLAVE_REG_MODULE_GLOBAL_CONFIG], registers_global_conf);
+		} else if (reg_addr == MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE) {
+			slave_registers_write(&slave_main_group_regs[MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE], registers_unit1_output_state_change);
 		} else if (reg_addr == MAIN_SLAVE_REG_LED_CONFIG) {
 
 		}

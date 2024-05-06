@@ -317,9 +317,13 @@ static void slave_poll_function(slave_regs_poll_func_req_t req) {
 		}
 	}
 }
-
+#if 0
 #define I2C_SLAVE_REGISTER_WRITE_TIME_MS					100
 #define I2C_SLAVE_REGISTER_POLL_TIME_MS						1000
+#else
+#define I2C_SLAVE_REGISTER_WRITE_TIME_MS					0
+#define I2C_SLAVE_REGISTER_POLL_TIME_MS						0
+#endif
 
 BOOL slave_registers_poll(uint32_t _1ms_tick_ctr) {
 

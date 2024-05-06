@@ -33,7 +33,7 @@ typedef struct {
 
 
 
-typedef uint16_t (*slave_reg_write_func)(slave_reg_data_t new_reg_val);
+typedef slave_reg_data_t (*slave_reg_write_func)(slave_reg_data_t new_reg_val);
 
 
 void slave_registers_init_value(volatile slave_reg_buf_t *reg, const uint16_t reg_value,

@@ -30,6 +30,7 @@ typedef enum {
 	/* 12  [12] */ MAIN_SLAVE_REG_MODULE_UNIT3_STATUS,		/* - Unit 3 status */
 	/* 13  [13] */ MAIN_SLAVE_REG_MODULE_UNIT4_STATUS,		/* - Unit 4 status */
 
+	/* 14  [14] */ MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE,/* - Unit 4 status */
 
 
 	/*  8  [ 8] */ MAIN_SLAVE_REG_RST,

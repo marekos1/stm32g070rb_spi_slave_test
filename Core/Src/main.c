@@ -802,10 +802,10 @@ int main(void) {
 
 
 		if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_SET) {
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+
 			main_group_slave_status_digital_in_state_set(0, 0, 0, FALSE);
 		} else {
-			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+
 			main_group_slave_status_digital_in_state_set(0, 0, 0, TRUE);
 		}
 
