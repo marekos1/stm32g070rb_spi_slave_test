@@ -164,6 +164,21 @@ void slave_registers_write(volatile slave_reg_buf_t *reg, slave_reg_write_func f
 	SLAVE_REGS_CRIDT_EXIT();
 }
 
+void slave_registers_address_write(volatile slave_reg_buf_t *reg, const slave_reg_addr_t addr, slave_reg_addr_write_func fn_addr) {
+
+	slave_reg_buf_t							reg_data;
+
+	SLAVE_REGS_CRIDT_ENTER();
+	reg_data = *reg;
+	SLAVE_REGS_CRIDT_EXIT();
+	if (fn_addr) {
+		reg_data.value = fn_addr(reg_data.value, addr);
+	}
+	SLAVE_REGS_CRIDT_ENTER();
+	*reg = reg_data;
+	SLAVE_REGS_CRIDT_EXIT();
+}
+
 static volatile slave_reg_buf_t* slave_get_reg_buffer(slave_reg_addr_t reg_addr) {
 
 	volatile slave_reg_buf_t				*reg_buffer = NULL;
@@ -339,9 +354,9 @@ BOOL slave_registers_poll(uint32_t _1ms_tick_ctr) {
 	return slave_connect;
 }
 
-bts_rc slave_registers_init(void) {
+msz_rc_t slave_registers_init(void) {
 
-	bts_rc									rc = BTS_RC_OK;
+	msz_rc_t								rc = MSZ_RC_OK;
 
 	slave_poll_function(SLAVE_REGS_POLL_FUNC_REQ_INIT);
 
