@@ -20,7 +20,7 @@ typedef enum {
 	/*  4  [ 4] */ MAIN_SLAVE_REG_MODULE_GLOBAL_CONFIG,		/* - GLOBAL config */
 	/*  5  [ 5] */ MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS,		/* - GLOBAL status */
 
-	/*  6  [ 6] */ MAIN_SLAVE_REG_MODULE_UNIT1_CONF,		/* - Unit 1 config */
+	/*  6  [ 6] */ MAIN_SLAVE_REG_MODULE_UNIT1_CONF,		/* - Unit 1 config - konfiguracja 4 modułow po 8 bitów*/
 	/*  7  [ 7] */ MAIN_SLAVE_REG_MODULE_UNIT2_CONF,		/* - Unit 2 config */
 	/*  8  [ 8] */ MAIN_SLAVE_REG_MODULE_UNIT3_CONF,		/* - Unit 3 config */
 	/*  9  [ 9] */ MAIN_SLAVE_REG_MODULE_UNIT4_CONF,		/* - Unit 4 config */
@@ -41,6 +41,11 @@ typedef enum {
 	MAIN_SLAVE_REG_NR_MAX
 } main_slave_reg_t;
 
+/* MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS */
+// bit 0 - Not supported unit
+#define MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS_NOT_SUPPORT_UNIT 		0
+// bit 1 : 4 - Unit 0 module 0 - 3 supported config
+#define MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS_U0M0_NOT_SUPPORT_CONF	1
 
 extern volatile slave_reg_buf_t slave_main_group_regs[MAIN_SLAVE_REG_NR_MAX];
 

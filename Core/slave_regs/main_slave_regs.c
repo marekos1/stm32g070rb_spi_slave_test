@@ -20,14 +20,16 @@
 #include "slave_regs.h"
 #include "main_slave_regs.h"
 
+#include "digital_in/digital_in_api.h"
+
 
 volatile slave_reg_buf_t slave_main_group_regs[MAIN_SLAVE_REG_NR_MAX];
 
 static const slave_reg_data_t slave_main_group_regs_ident_value[6] = {
 		/* 0 */ 0x00000001, 													/* - Module ready */
 		/* 1 */ 0x00000082, 													/* - Module Type 0x0082 - GPS */
-		/* 2 */ (slave_reg_data_t)SYSTEM_HARDWARE_REVISON,							/* - Module Hardware revision */
-		/* 3 */ (slave_reg_data_t)SYSTEM_SOFTWARE_VERSION_MINOR, 					/* - Module Firmware revision */
+		/* 2 */ (slave_reg_data_t)SYSTEM_HARDWARE_REVISON,						/* - Module Hardware revision */
+		/* 3 */ (slave_reg_data_t)SYSTEM_SOFTWARE_VERSION_MINOR, 				/* - Module Firmware revision */
 		/* 4 */ 0x00000000, 													/* - Global config */
 };
 
@@ -44,6 +46,47 @@ static slave_reg_data_t registers_global_conf(slave_reg_data_t new_reg_value) {
 	if (reg_val & (1 << 1)) {
 		reg_val &= ~(1 << 0);	/* Self cleared bit */
 	}
+
+	return reg_val;
+}
+
+
+
+
+
+static slave_reg_data_t registers_unit_conf(const slave_reg_addr_t addr, slave_reg_data_t new_reg_value) {
+
+	slave_reg_data_t						reg_val = new_reg_value, status_reg_data;
+	msz_t200_module_no_t					module_no;
+	msz_t200_module_type_t					module_type;
+
+	slave_get_regs_data(slave_main_group_regs, MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS, &status_reg_data, 1);
+	if (addr == MAIN_SLAVE_REG_MODULE_UNIT1_CONF) {
+		slave_reset_bit_in_reg(status_reg_data, MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS_NOT_SUPPORT_UNIT);
+		for (module_no = 0; module_no < MSZ_T200_MODULES; module_no++) {
+			module_type = (msz_t200_module_type_t)((new_reg_value >> (8 * module_no)) & 0x000000FF);
+			slave_reset_bit_in_reg(status_reg_data, (MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS_U0M0_NOT_SUPPORT_CONF + module_no));
+			switch (module_type) {
+			case MSZ_T200_MODULE_TYPE_NONE_OR_EMPTY:
+				digital_in_device_conf_set(0, module_no, MSZ_T200_MODULE_TYPE_DIGITAL_INPUT8, FALSE);
+				break;
+			case MSZ_T200_MODULE_TYPE_DIGITAL_INPUT8:
+				digital_in_device_conf_set(0, module_no, MSZ_T200_MODULE_TYPE_DIGITAL_INPUT8, TRUE);
+				//TODO na błąd tej funkcji można podać nową wartość rejestru aby głowny procek wiedział że coś nie działa
+				break;
+			case MSZ_T200_MODULE_TYPE_DIGITAL_OUTPUT8:
+
+				break;
+			default:
+				slave_set_bit_in_reg(status_reg_data, (MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS_U0M0_NOT_SUPPORT_CONF + module_no));
+				break;
+			}
+		}
+	} else {
+		slave_set_bit_in_reg(status_reg_data, MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS_NOT_SUPPORT_UNIT);
+	}
+	slave_set_regs_data(slave_main_group_regs, MAIN_SLAVE_REG_MODULE_GLOBAL_STATUS, &status_reg_data, 1);
+
 
 	return reg_val;
 }
@@ -124,6 +167,8 @@ BOOL main_group_slave_regs_req(slave_regs_poll_func_req_t req, uint16_t reg_addr
 	case SLAVE_REGS_POLL_FUNC_REQ_WRITE:
 		if (reg_addr == MAIN_SLAVE_REG_MODULE_GLOBAL_CONFIG) {
 			slave_registers_write(&slave_main_group_regs[MAIN_SLAVE_REG_MODULE_GLOBAL_CONFIG], registers_global_conf);
+		} else if ((reg_addr >= MAIN_SLAVE_REG_MODULE_UNIT1_CONF) && (reg_addr <= MAIN_SLAVE_REG_MODULE_UNIT4_CONF)) {
+			slave_registers_address_write(&slave_main_group_regs[reg_addr], reg_addr, registers_unit_conf);
 		} else if (reg_addr == MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE) {
 			slave_registers_write(&slave_main_group_regs[MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE], registers_unit1_output_state_change);
 		} else if (reg_addr == MAIN_SLAVE_REG_LED_CONFIG) {
