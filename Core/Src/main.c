@@ -25,6 +25,8 @@
 #include "slave_regs.h"
 #include "main_slave_regs.h"
 
+#include "digital_in/digital_in_api.h"
+
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -736,6 +738,7 @@ int main(void) {
 
 	uint32_t led_ctr, current_1ms_ctr_tick;
 	BOOL connect = FALSE;
+	uint32_t		digital_in_ctr;
 
 	/* USER CODE END 1 */
 
@@ -777,6 +780,8 @@ int main(void) {
 	led_ctr = 0;
 	current_1ms_ctr_tick = 0;
 	slave_registers_init();
+
+	digital_in_ctr = 0;
 	/* USER CODE END 2 */
 
 	MX_SPI1_Init();
@@ -799,8 +804,6 @@ int main(void) {
 		connect = slave_registers_poll(current_1ms_ctr_tick);
 		current_1ms_ctr_tick++;
 
-
-
 		if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_SET) {
 
 			main_group_slave_status_digital_in_state_set(0, 0, 0, FALSE);
@@ -818,6 +821,12 @@ int main(void) {
 			led_ctr = 0;
 		}
 		/* USER CODE BEGIN 3 */
+
+		if (++digital_in_ctr >= 10) {
+			digital_in_ctr = 0;
+			digital_in_poll();
+		}
+
 	}
 	/* USER CODE END 3 */
 }
