@@ -21,14 +21,14 @@
 
 
 typedef struct {
-	BOOL									exists;
+	bool									exists;
 	msz_t200_unit_no_t						unit_no;
 	msz_t200_module_no_t					module_no;
 } digital_in_cap_t;
 
 typedef struct {
 	digital_in_cap_t 						cap[DIGITAL_IN_TOTAL_INPUT];
-	BOOL									cap_change[MSZ_T200_UNITS];
+	bool									cap_change[MSZ_T200_UNITS];
 
 } digital_in_base_t;
 

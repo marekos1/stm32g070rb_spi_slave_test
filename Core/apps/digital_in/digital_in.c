@@ -10,7 +10,8 @@
 #include "main.h"
 #include "types.h"
 #include "board.h"
-#include "digital_in/digirtal_in.h"
+#include "digital_in/digital_in.h"
+#include "trace/trace.h"
 
 
 static digital_in_base_t digital_in_base;
@@ -30,7 +31,7 @@ static digital_in_base_t digital_in_base;
 static msz_rc_t digital_in_internal_input_read_status(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, digital_in_status_t *status) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
-	BOOL									state;
+	bool									state;
 
 	state = board_read_digital_input_state(module_no, digital_in_no);
 	status->state = state;
@@ -100,33 +101,30 @@ static msz_rc_t digital_in_unit_init(const msz_t200_unit_no_t unit_no, const dig
 	return rc;
 }
 
-msz_rc_t digital_in_device_conf_set(const msz_t200_unit_no_t unit_no, const msz_t200_module_no_t module_no, const msz_t200_module_type_t module_type, const BOOL enable) {
+msz_rc_t digital_in_device_conf_set(const msz_t200_unit_no_t unit_no, const msz_t200_module_no_t module_no, const bool enable) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
 	digital_in_no_t							digital_in_no, digital_in_max_in_module;
 	uint32_t								digital_in_cap_idx;
 
+	T_DG_DIGI_IN("Enter unit_no: %u module_no: %u enable: %u", unit_no, module_no, enable);
 	if (unit_no < MSZ_T200_UNITS) {
 		if (module_no < MSZ_T200_MODULES) {
-			if (module_type == MSZ_T200_MODULE_TYPE_DIGITAL_INPUT8) {
-				digital_in_max_in_module = 8;
-				DIGITAL_IN_CRIDT_ENTER();
-				for (digital_in_no = 0; digital_in_no < digital_in_max_in_module; digital_in_no++) {
-					digital_in_cap_idx = DIGITAL_IN_INPUT_INDEX(unit_no, module_no, digital_in_no);
-					digital_in_base.cap[digital_in_cap_idx].exists = enable;
-					digital_in_base.cap[digital_in_cap_idx].unit_no = unit_no;
-					digital_in_base.cap[digital_in_cap_idx].module_no = module_no;
-				}
-				digital_in_base.cap_change[unit_no] = TRUE;
-				DIGITAL_IN_CRIDT_EXIT();
-			} else {
-				rc = MSZ_RC_DIGITAL_IN_UNSUPPORTED_MODULE_TYPE;
+			digital_in_max_in_module = 8;
+			DIGITAL_IN_CRIDT_ENTER();
+			for (digital_in_no = 0; digital_in_no < digital_in_max_in_module; digital_in_no++) {
+				digital_in_cap_idx = DIGITAL_IN_INPUT_INDEX(unit_no, module_no, digital_in_no);
+				digital_in_base.cap[digital_in_cap_idx].exists = enable;
+				digital_in_base.cap[digital_in_cap_idx].unit_no = unit_no;
+				digital_in_base.cap[digital_in_cap_idx].module_no = module_no;
 			}
+			digital_in_base.cap_change[unit_no] = true;
+			DIGITAL_IN_CRIDT_EXIT();
 		} else {
 			rc = MSZ_RC_MODULE_NO_OUTSIDE_THE_RANGE;
 		}
 	} else {
-		rc = MSZ_RC_MODULE_NO_OUTSIDE_THE_RANGE;
+		rc = MSZ_RC_UNIT_NO_OUTSIDE_THE_RANGE;
 	}
 
 	return rc;
@@ -144,7 +142,7 @@ void digital_in_poll(void) {
 	for (unit_no = 0; unit_no < MSZ_T200_UNITS; unit_no++) {
 		if (digital_in_base.cap_change[unit_no]) {
 			memcpy(unit_cap[unit_no], digital_in_base.cap, sizeof(digital_in_cap_t) * 32);
-			digital_in_base.cap_change[unit_no] = FALSE;
+			digital_in_base.cap_change[unit_no] = false;
 			digital_in_unit_init(unit_no, unit_cap[unit_no]);
 		}
 	}

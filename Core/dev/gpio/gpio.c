@@ -69,7 +69,7 @@ static uint8_t gpio_get_port_position_in_syscfg_exti(GPIO_TypeDef *gpio_port) {
 
 
 static void gpio_init(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, gpio_type_t type,
-													BOOL open_drain, gpio_speed_t speed, gpio_pullup_t pullup) {
+													bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup) {
 
 	if (open_drain) {
 		gpio_port->OTYPER |= (1 << gpio_pin);
@@ -84,7 +84,7 @@ static void gpio_init(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, gpio_type_t typ
 	gpio_port->PUPDR |= ((uint32_t)(pullup) << (gpio_pin * 2));
 }
 
-void gpio_set_output_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, const BOOL state) {
+void gpio_set_output_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, const bool state) {
 
 	if (state) {
 		gpio_port->BSRR |= (1 << gpio_pin);
@@ -102,7 +102,7 @@ void gpio_toggle_output_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin) {
 	}
 }
 
-msz_rc_t gpio_init_output(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL open_drain, gpio_speed_t speed, gpio_pullup_t pullup) {
+msz_rc_t gpio_init_output(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
 	uint16_t								gpio_pin;
@@ -119,7 +119,7 @@ msz_rc_t gpio_init_output(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL 
 	return rc;
 }
 
-msz_rc_t gpio_init_alt(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL open_drain, gpio_speed_t speed, gpio_pullup_t pullup, uint8_t af) {
+msz_rc_t gpio_init_alt(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup, uint8_t af) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
 	uint8_t									gpio_pin;
@@ -147,7 +147,7 @@ msz_rc_t gpio_init_alt(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL ope
 	return rc;
 }
 
-msz_rc_t gpio_exti_init(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL rising_edge, BOOL falling_edge) {
+msz_rc_t gpio_exti_init(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool rising_edge, bool falling_edge) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
 	uint8_t									gpio_pin, port_pos;
@@ -175,6 +175,59 @@ msz_rc_t gpio_exti_init(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL ri
 }
 
 #elif defined(STM32G070xx)
+#if 0
+
+static uint8_t gpio_get_port_position_in_syscfg_exti(GPIO_TypeDef *gpio_port) {
+
+	uint8_t									position = 0;
+
+	if (gpio_port == GPIOA) {
+		position = 0;
+	} else if (gpio_port == GPIOB) {
+		position = 1;
+	} else if (gpio_port == GPIOC) {
+		position = 2;
+	} else if (gpio_port == GPIOD) {
+		position = 3;
+	} else if (gpio_port == GPIOE) {
+		position = 4;
+	} else if (gpio_port == GPIOF) {
+		position = 5;
+	} else {
+		position = 6;
+	}
+
+	return position;
+}
+
+msz_rc_t gpio_exti_init(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool rising_edge, bool falling_edge) {
+
+	msz_rc_t								rc = MSZ_RC_OK;
+	uint8_t									gpio_pin, port_pos;
+
+	RCC->APBENR2 |= RCC_APBENR2_SYSCFGEN;
+	port_pos = gpio_get_port_position_in_syscfg_exti(gpio_port);
+	for (gpio_pin = 0; gpio_pin < 16; gpio_pin++) {
+		if (gpio_pin_mask & (1 << gpio_pin)) {
+			SYSCFG->EXTICR[gpio_pin / 4] &= ~(0x0F << (4 * (gpio_pin & 0x03)));
+			SYSCFG->EXTICR[gpio_pin / 4] = port_pos << (4 * (gpio_pin & 0x03));
+			EXTI->IMR1 |= 1 << gpio_pin;
+			EXTI->EMR1 &= ~(1 << gpio_pin);
+			EXTI->RTSR1 &= ~(1 << gpio_pin);
+			EXTI->FTSR1 &= ~(1 << gpio_pin);
+			if (rising_edge) {
+				EXTI->RTSR1 |= 1 << gpio_pin;
+			}
+			if (falling_edge) {
+				EXTI->FTSR1 |= 1 << gpio_pin;
+			}
+		}
+	}
+
+	return rc;
+}
+
+#endif
 
 static msz_rc_t gpio_init_port(GPIO_TypeDef *gpio_port) {
 
@@ -200,7 +253,7 @@ static msz_rc_t gpio_init_port(GPIO_TypeDef *gpio_port) {
 #endif
 
 static void gpio_init(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, gpio_type_t type,
-													BOOL open_drain, gpio_speed_t speed, gpio_pullup_t pullup) {
+													bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup) {
 
 	if (open_drain) {
 		gpio_port->OTYPER |= (1 << gpio_pin);
@@ -222,7 +275,7 @@ msz_rc_t gpio_init_default(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask) {
 
 	for (gpio_pin = 0; gpio_pin < 16; gpio_pin++) {
 		if (gpio_pin_mask & (1 << gpio_pin)) {
-			gpio_init(gpio_port, gpio_pin, GPIO_TYPE_DISABLE, FALSE, GPIO_SPEED_LOW, GPIO_NO_PULL_UP_NO_PULL_DOWN);
+			gpio_init(gpio_port, gpio_pin, GPIO_TYPE_DISABLE, false, GPIO_SPEED_LOW, GPIO_NO_PULL_UP_NO_PULL_DOWN);
 		}
 	}
 
@@ -238,7 +291,7 @@ msz_rc_t gpio_init_input(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, gpio_s
 	if (rc == MSZ_RC_OK) {
 		for (gpio_pin = 0; gpio_pin < 16; gpio_pin++) {
 			if (gpio_pin_mask & (1 << gpio_pin)) {
-				gpio_init(gpio_port, gpio_pin, GPIO_TYPE_INPUT, FALSE, speed, pullup);
+				gpio_init(gpio_port, gpio_pin, GPIO_TYPE_INPUT, false, speed, pullup);
 			}
 		}
 	}
@@ -246,12 +299,39 @@ msz_rc_t gpio_init_input(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, gpio_s
 	return rc;
 }
 
-BOOL gpio_get_input_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin) {
+bool gpio_get_input_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin) {
 
-	BOOL									state;
+	bool									state;
 
-	state = gpio_port->IDR & (1 << gpio_pin) ? TRUE : FALSE;
+	state = gpio_port->IDR & (1 << gpio_pin) ? true : false;
 
 	return state;
 }
 
+msz_rc_t gpio_init_alt(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup, uint8_t af) {
+
+	msz_rc_t								rc = MSZ_RC_OK;
+	uint8_t									gpio_pin;
+
+	if (af < 16) {
+		rc = gpio_init_port(gpio_port);
+		if (rc == MSZ_RC_OK) {
+			for (gpio_pin = 0; gpio_pin < 16; gpio_pin++) {
+				if (gpio_pin_mask & (1 << gpio_pin)) {
+					if (gpio_pin < 8) {
+						gpio_port->AFR[0] &= ~(0x0F << ((gpio_pin) * 4));
+						gpio_port->AFR[0] |= (af << ((gpio_pin) * 4));
+					} else {
+						gpio_port->AFR[1] &= ~(0x0F << ((gpio_pin - 8) * 4));
+						gpio_port->AFR[1] |= (af << ((gpio_pin - 8) * 4));
+					}
+					gpio_init(gpio_port, gpio_pin, GPIO_TYPE_ALTERNATE, open_drain, speed, pullup);
+				}
+			}
+		}
+	} else {
+		rc = MSZ_RC_GPIO_INV_AF;
+	}
+
+	return rc;
+}

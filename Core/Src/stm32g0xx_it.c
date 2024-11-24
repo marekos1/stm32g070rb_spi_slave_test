@@ -122,9 +122,31 @@ void SysTick_Handler(void) {
 	/* USER CODE END SysTick_IRQn 0 */
 	HAL_IncTick();
 	/* USER CODE BEGIN SysTick_IRQn 1 */
-
+	systick_tick();
 	/* USER CODE END SysTick_IRQn 1 */
 }
+
+#include "uart/uart.h"
+
+void USART2_IRQHandler(void) {
+
+	uart_irq(USART2);
+}
+
+void EXTI4_15_IRQHandler(void) {
+
+	if (__HAL_GPIO_EXTI_GET_FALLING_IT(GPIO_PIN_4) != 0x00u) {
+		__HAL_GPIO_EXTI_CLEAR_FALLING_IT(GPIO_PIN_4);
+		msz_t200_spi_slave_input_irq(true);
+	}
+
+	if (__HAL_GPIO_EXTI_GET_RISING_IT(GPIO_PIN_4) != 0x00u) {
+		__HAL_GPIO_EXTI_CLEAR_RISING_IT(GPIO_PIN_4);
+		msz_t200_spi_slave_input_irq(false);
+	}
+}
+
+
 
 /******************************************************************************/
 /* STM32G0xx Peripheral Interrupt Handlers                                    */

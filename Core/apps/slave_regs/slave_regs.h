@@ -39,7 +39,7 @@ typedef slave_reg_data_t (*slave_reg_addr_write_func)(const slave_reg_addr_t add
 
 
 void slave_registers_init_value(volatile slave_reg_buf_t *reg, const uint16_t reg_value,
-									BOOL write_priv, BOOL change_not_check, BOOL write_by_irq);
+									bool write_priv, bool change_not_check, bool write_by_irq);
 
 void slave_registers_write(volatile slave_reg_buf_t *reg, slave_reg_write_func fn);
 
@@ -58,7 +58,7 @@ void slave_get_regs_data(volatile slave_reg_buf_t *reg_buffer, uint16_t reg_addr
 #define slave_set_bit_in_reg(reg, bit) 			(reg |= (1 << bit))
 
 
-BOOL slave_registers_poll(uint32_t _1ms_tick_ctr);
+bool slave_registers_poll(uint32_t _1ms_tick_ctr);
 
 msz_rc_t slave_registers_init(void);
 

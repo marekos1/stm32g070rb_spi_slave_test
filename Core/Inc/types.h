@@ -10,10 +10,11 @@
 
 #include <stdint.h>
 
-#define TRUE 1
-#define FALSE 0
 
-typedef uint8_t BOOL;
+typedef int bool;
+#define true 	1
+#define false 	0
+
 
 typedef enum {
 	MSZ_RC_OK = 0,
@@ -59,6 +60,12 @@ typedef enum {
 
 	MSZ_RC_DIGITAL_IN_UNSUPPORTED_MODULE_TYPE = -2000,
 
+	MSZ_RC_SPI_SLAVE_INV_CONST_HEADER = -3000,
+	MSZ_RC_SPI_SLAVE_INV_VAR_HEADER = -3001,
+	MSZ_RC_SPI_SLAVE_INV_HEADER_LENGTH = -3002,
+	MSZ_RC_SPI_SLAVE_ERR_OVERRUN = -3003,
+	MSZ_RC_SPI_SLAVE_MASTER_FINISH_TRANSACTION = -3004,
+
 	MSZ_RC_LAST
 } msz_rc_t;
 
@@ -95,6 +102,16 @@ typedef enum {
 #define DIGITAL_INPUTS_PER_MODULE	8
 
 typedef uint8_t digital_in_no_t;
+
+
+
+/****************
+ * digital out types
+ */
+
+#define DIGITAL_OUTPUTS_PER_MODULE		8
+
+typedef uint8_t digital_out_no_t;
 
 
 #endif /* INC_TYPES_H_ */

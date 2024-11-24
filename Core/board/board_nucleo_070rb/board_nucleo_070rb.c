@@ -14,7 +14,7 @@
 #endif
 
 #include "gpio/gpio.h"
-
+#include "uart/uart.h"
 
 static const gpio_portpin_t board_nucleo_g070rb_digital_input_gpio[MSZ_T200_MODULES][DIGITAL_INPUTS_PER_MODULE] = {
 
@@ -64,7 +64,7 @@ static const gpio_portpin_t board_nucleo_g070rb_digital_input_gpio[MSZ_T200_MODU
 };
 
 
-msz_rc_t board_T200_cpu_v01_init_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const BOOL enable) {
+msz_rc_t board_T200_cpu_v01_init_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
 	uint16_t								gpio_pin_mask;
@@ -79,10 +79,28 @@ msz_rc_t board_T200_cpu_v01_init_digital_input_state(const msz_t200_module_no_t 
 	return rc;
 }
 
-BOOL board_T200_cpu_v01_read_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no) {
+bool board_T200_cpu_v01_read_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no) {
 
 	return gpio_get_input_state(board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].port, board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].pin);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+const uart_msz_dev_t cli_trace_uart_dev = {
+	.usart = USART2,
+	.tx_gpio_pin = {GPIOA, 2, 1},
+	.rx_gpio_pin = {GPIOA, 3, 1},
+};
 
 #endif /* BOARD_TYPE == BOARD_T200_CPU_V01 */
 

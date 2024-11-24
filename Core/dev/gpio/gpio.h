@@ -51,20 +51,20 @@ typedef enum {
 } gpio_type_t;
 
 
-void gpio_set_output_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, const BOOL state);
+void gpio_set_output_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin, const bool state);
 
 void gpio_toggle_output_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin);
 
-BOOL gpio_get_input_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin);
+bool gpio_get_input_state(GPIO_TypeDef *gpio_port, uint8_t gpio_pin);
 
-msz_rc_t gpio_init_output(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL open_drain, gpio_speed_t speed, gpio_pullup_t pullup);
+msz_rc_t gpio_init_output(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup);
 
 msz_rc_t gpio_init_input(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, gpio_speed_t speed, gpio_pullup_t pullup);
 
-msz_rc_t gpio_init_alt(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL open_drain, gpio_speed_t speed, gpio_pullup_t pullup, uint8_t af);
+msz_rc_t gpio_init_alt(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool open_drain, gpio_speed_t speed, gpio_pullup_t pullup, uint8_t af);
 
 msz_rc_t gpio_init_default(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask);
 
-msz_rc_t gpio_exti_init(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, BOOL rising_edge, BOOL falling_edge);
+msz_rc_t gpio_exti_init(GPIO_TypeDef *gpio_port, uint16_t gpio_pin_mask, bool rising_edge, bool falling_edge);
 
 #endif /* DEV_GPIO_GPIO_H_ */

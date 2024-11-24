@@ -8,9 +8,11 @@
 #ifndef INC_MAIN_SLAVE_REGS_H_
 #define INC_MAIN_SLAVE_REGS_H_
 
-#include "slave_regs.h"
+#include "slave_regs/slave_regs.h"
+
 
 #define MAIN_SLAVE_REG_BASE_ADDR	0
+
 
 typedef enum {
 	/*  0  [ 0] */ MAIN_SLAVE_REG_MODULE_READY = 0,			/* - Module ready */
@@ -49,11 +51,11 @@ typedef enum {
 
 extern volatile slave_reg_buf_t slave_main_group_regs[MAIN_SLAVE_REG_NR_MAX];
 
-BOOL main_group_slave_regs_req(slave_regs_poll_func_req_t req, uint16_t reg_addr, slave_reg_data_t data);
+bool main_group_slave_regs_req(slave_regs_poll_func_req_t req, uint16_t reg_addr, slave_reg_data_t data);
 
-void main_group_slave_status_set(BOOL system_ready);
+void main_group_slave_status_set(bool system_ready);
 
-void main_group_slave_status_digital_in_state_set(uint32_t unit, uint32_t module, uint32_t input, BOOL state);
+void main_group_slave_status_digital_in_state_set(uint32_t unit, uint32_t module, uint32_t input, bool state);
 
 
 #endif /* INC_MAIN_SLAVE_REGS_H_ */
