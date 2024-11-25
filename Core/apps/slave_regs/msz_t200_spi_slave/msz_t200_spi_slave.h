@@ -12,6 +12,8 @@
 
 bool msz_t200_spi_slave_poll(void);
 
+void msz_t200_spi_slave_generate_irq(const bool irq);
+
 msz_rc_t msz_t200_spi_slave_init(void);
 
 #endif /* SRC_SLAVE_REGS_MSZ_T200_SPI_SLAVE_MSZ_T200_SPI_SLAVE_H_ */

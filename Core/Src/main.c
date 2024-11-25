@@ -118,9 +118,12 @@ uint32_t system_ms_time(void) {
 int main(void) {
 	/* USER CODE BEGIN 1 */
 
-	uint32_t led_ctr, current_1ms_ctr_tick, test_ctr;
-	bool connect = false;
+	uint32_t 								led_ctr, current_1ms_ctr_tick, test_ctr, irq_req_ctr;
+	bool									connect = false, irq_req_state = false;
+	bool									input_state = false, prev_input_state = false;
+
 	uint32_t		digital_in_ctr, _1sec_tick_ctr;
+
 
 	/* USER CODE END 1 */
 
@@ -153,6 +156,9 @@ int main(void) {
 	trace_cli_init();
 	T_DG_MAIN("Enter");
 
+
+
+
 	/*
 	for (led_ctr = 0; led_ctr < 100; led_ctr++) {
 		TEST3_PIN_UP();
@@ -166,6 +172,7 @@ int main(void) {
 
 	led_ctr = 0;
 	test_ctr = 0;
+	irq_req_ctr = 0;
 	current_1ms_ctr_tick = 0;
 	slave_registers_init();
 
@@ -196,6 +203,9 @@ int main(void) {
 		connect = slave_registers_poll(current_1ms_ctr_tick);
 		current_1ms_ctr_tick++;
 
+
+
+#if 0
 		if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_SET) {
 
 			main_group_slave_status_digital_in_state_set(0, 0, 0, false);
@@ -203,6 +213,14 @@ int main(void) {
 
 			main_group_slave_status_digital_in_state_set(0, 0, 0, true);
 		}
+#else
+		input_state = (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_RESET);
+
+		if (input_state != prev_input_state) {
+			main_group_slave_status_digital_in_state_set(0, 0, 0, input_state);
+			prev_input_state = input_state;
+		}
+#endif
 
 #else
 		spi_slave_init();
@@ -225,10 +243,18 @@ int main(void) {
 			T_DG_MAIN("1. led_ctr: %12u", test_ctr++);
 	//		T_DG_MAIN("2. led_ctr: %12u", test_ctr++);
 	//		T_DG_MAIN("3. led_ctr: %12u", test_ctr++);
+			if (++irq_req_ctr >= 10) {
+				irq_req_ctr = 0;
+				if (irq_req_state) {
+					irq_req_state = false;
+				} else {
+					irq_req_state = true;
+				}
+			//	T_DG_MAIN("IRQ request state: %u", irq_req_state);
+			//	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, irq_req_state ? GPIO_PIN_RESET : GPIO_PIN_SET);
+			}
 		}
-
 	}
-	/* USER CODE END 3 */
 }
 
 /**
@@ -355,6 +381,17 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
+
+
+
+	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, GPIO_PIN_SET);
+
+	GPIO_InitStruct.Pin = IRQ_REQUEST_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(IRQ_REQUEST_GPIO_Port, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */

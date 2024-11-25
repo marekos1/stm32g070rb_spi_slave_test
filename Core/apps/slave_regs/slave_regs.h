@@ -39,7 +39,7 @@ typedef slave_reg_data_t (*slave_reg_addr_write_func)(const slave_reg_addr_t add
 
 
 void slave_registers_init_value(volatile slave_reg_buf_t *reg, const uint16_t reg_value,
-									bool write_priv, bool change_not_check, bool write_by_irq);
+									bool write_priv, bool change_not_check, bool write_by_irq, const bool generate_irq);
 
 void slave_registers_write(volatile slave_reg_buf_t *reg, slave_reg_write_func fn);
 
@@ -50,7 +50,7 @@ void slave_irq_write_reg(slave_reg_addr_t reg_addr, slave_reg_data_t data);
 
 void slave_irq_read_reg(slave_reg_addr_t reg_addr, slave_reg_data_t *data);
 
-void slave_set_regs_data(volatile slave_reg_buf_t *reg_buffer, uint16_t reg_addr, slave_reg_data_t *data, uint16_t data_length);
+void slave_set_regs_data(const slave_reg_addr_t base_reg_addr, slave_reg_data_t *data, uint16_t data_length);
 
 void slave_get_regs_data(volatile slave_reg_buf_t *reg_buffer, uint16_t reg_addr, slave_reg_data_t *data, uint16_t data_length);
 

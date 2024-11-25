@@ -13,6 +13,10 @@
 #include "digital_out/digital_out_slave_regs.h"
 #endif /* CONFIG_APPS_DIGITAL_OUT_ENABLE */
 
+#if CONFIG_APPS_DIGITAL_IN_ENABLE
+#include "digital_in/digital_in_slave_regs.h"
+#endif /* CONFIG_APPS_DIGITAL_OUT_ENABLE */
+
 #if (CONFIG_SLAVE_REGS_SPI_T200_SPI_SLAVE == CONFIG_SLAVE_REGS_BY_SPI_T200_SPI_SLAVE)
 #include "slave_regs/msz_t200_spi_slave/msz_t200_spi_slave.h"
 #endif /* (CONFIG_SLAVE_REGS_SPI_T200_SPI_SLAVE == CONFIG_SLAVE_REGS_BY_SPI_T200_SPI_SLAVE) */
@@ -38,6 +42,7 @@
 
 typedef struct {
 	bool									write;
+	bool									irq_pending;
 } slave_register_group_data_t;
 
 typedef struct {
@@ -45,7 +50,7 @@ typedef struct {
 	uint16_t								reg_buffer_length;
 	volatile slave_reg_buf_t				*reg_buffer;
     bool (*req_function)(slave_regs_poll_func_req_t req, uint16_t reg_addr, slave_reg_data_t data);
-    slave_register_group_data_t			*data;
+    slave_register_group_data_t				*data;
 } slave_register_group_entry_t;
 
 
@@ -54,6 +59,9 @@ typedef enum {
 	I2C_SLAVE_REGISTER_GROUP_MAIN = 0,
 #if CONFIG_APPS_DIGITAL_OUT_ENABLE
 	I2C_SLAVE_REGISTER_GROUP_DIGITAL_OUT,
+#endif /* CONFIG_APPS_DIGITAL_OUT_ENABLE */
+#if CONFIG_APPS_DIGITAL_IN_ENABLE
+	I2C_SLAVE_REGISTER_GROUP_DIGITAL_IN,
 #endif /* CONFIG_APPS_DIGITAL_OUT_ENABLE */
 
 	I2C_SLAVE_REGISTER_GROUP_NUMBER
@@ -75,6 +83,14 @@ static const slave_register_group_entry_t slave_register_group[I2C_SLAVE_REGISTE
 													.req_function 		= digital_out_group_slave_regs_req,
 													.data				= &slave_register_group_data[I2C_SLAVE_REGISTER_GROUP_DIGITAL_OUT]},
 #endif /* CONFIG_APPS_DIGITAL_OUT_ENABLE */
+
+#if CONFIG_APPS_DIGITAL_IN_ENABLE
+	[I2C_SLAVE_REGISTER_GROUP_DIGITAL_IN] 		= {	.base_addr 			= DIGITAL_IN_SLAVE_REG_BASE_ADDR,				/* 0x03E8  [  1000] */
+													.reg_buffer_length 	= DIGITAL_IN_SLAVE_REG_NR_MAX,					/* 0x0001        1  */
+													.reg_buffer 		= digital_in_group_regs,
+													.req_function 		= digital_in_group_slave_regs_req,
+													.data				= &slave_register_group_data[I2C_SLAVE_REGISTER_GROUP_DIGITAL_IN]},
+#endif /* CONFIG_APPS_DIGITAL_OUT_ENABLE */
 };
 
 
@@ -88,6 +104,8 @@ static uint32_t slave_reg_poll_1000ms_ctr;
 #define I2C_SLAVE_REG_BUFFER_CTRL_WR_BY_IRQ_BIT 	2
 #define I2C_SLAVE_REG_BUFFER_CTRL_WR_EVENT_BIT 		3
 #define I2C_SLAVE_REG_BUFFER_CTRL_CHANGE_EVENT_BIT 	4
+#define I2C_SLAVE_REG_BUFFER_CTRL_GENERATE_IRQ_BIT 	5
+#define I2C_SLAVE_REG_BUFFER_CTRL_IRQ_PENDING_EVENT_BIT		6
 
 static void slave_regs_conf_bit_in_ctrl(volatile uint16_t *ctrl, uint8_t bit, bool set) {
 
@@ -98,11 +116,12 @@ static void slave_regs_conf_bit_in_ctrl(volatile uint16_t *ctrl, uint8_t bit, bo
 }
 
 static void slave_regs_set_write_privileges(volatile slave_reg_buf_t *reg_buffer,
-												bool write_privileges, bool change_not_check, bool write_by_irq) {
+												bool write_privileges, bool change_not_check, bool write_by_irq, bool generate_irq) {
 
 	slave_regs_conf_bit_in_ctrl(&reg_buffer->ctrl, I2C_SLAVE_REG_BUFFER_CTRL_WR_PRIV_BIT, write_privileges);
 	slave_regs_conf_bit_in_ctrl(&reg_buffer->ctrl, I2C_SLAVE_REG_BUFFER_CTRL_WR_NOT_CHECK_BIT, change_not_check);
 	slave_regs_conf_bit_in_ctrl(&reg_buffer->ctrl, I2C_SLAVE_REG_BUFFER_CTRL_WR_BY_IRQ_BIT, write_by_irq);
+	slave_regs_conf_bit_in_ctrl(&reg_buffer->ctrl, I2C_SLAVE_REG_BUFFER_CTRL_GENERATE_IRQ_BIT, generate_irq);
 }
 
 static bool slave_regs_get_write_privileges(volatile slave_reg_buf_t *reg_buffer) {
@@ -132,6 +151,15 @@ static bool slave_regs_get_write_not_check(volatile slave_reg_buf_t *reg_buffer)
 	return ret_val;
 }
 
+static bool slave_regs_get_generate_irq(volatile slave_reg_buf_t *reg_buffer) {
+
+	bool									ret_val;
+
+	ret_val = (bool)(reg_buffer->ctrl & (1 << I2C_SLAVE_REG_BUFFER_CTRL_GENERATE_IRQ_BIT));
+
+	return ret_val;
+}
+
 static void slave_regs_set_write_event(volatile slave_reg_buf_t *reg_buffer, bool write_event, bool change_value) {
 
 	reg_buffer->ctrl &= ~((1 << I2C_SLAVE_REG_BUFFER_CTRL_WR_EVENT_BIT) | (1 << I2C_SLAVE_REG_BUFFER_CTRL_CHANGE_EVENT_BIT));
@@ -152,6 +180,23 @@ static bool slave_regs_get_write_event(volatile slave_reg_buf_t *reg_buffer) {
 	return ret_val;
 }
 
+static void slave_regs_set_irq_pending_event(volatile slave_reg_buf_t *reg_buffer, const bool irq_pending) {
+
+	reg_buffer->ctrl &= ~((1 << I2C_SLAVE_REG_BUFFER_CTRL_IRQ_PENDING_EVENT_BIT));
+	if (irq_pending) {
+		reg_buffer->ctrl |= (1 << I2C_SLAVE_REG_BUFFER_CTRL_IRQ_PENDING_EVENT_BIT);
+	}
+}
+
+static bool slave_regs_get_irq_pending_event(volatile slave_reg_buf_t *reg_buffer) {
+
+	bool									ret_val;
+
+	ret_val = (bool)(reg_buffer->ctrl & (1 << I2C_SLAVE_REG_BUFFER_CTRL_IRQ_PENDING_EVENT_BIT));
+
+	return ret_val;
+}
+
 static bool slave_regs_get_change_value_event(volatile slave_reg_buf_t *reg_buffer) {
 
 	bool									ret_val;
@@ -162,10 +207,10 @@ static bool slave_regs_get_change_value_event(volatile slave_reg_buf_t *reg_buff
 }
 
 void slave_registers_init_value(volatile slave_reg_buf_t *reg, const uint16_t reg_value,
-									bool write_priv, bool change_not_check, bool write_by_irq) {
+									bool write_priv, bool change_not_check, bool write_by_irq, const bool generate_irq) {
 
 	reg->value = reg_value;
-	slave_regs_set_write_privileges(reg, write_priv, change_not_check, write_by_irq);
+	slave_regs_set_write_privileges(reg, write_priv, change_not_check, write_by_irq, generate_irq);
 }
 
 void slave_registers_write(volatile slave_reg_buf_t *reg, slave_reg_write_func fn) {
@@ -214,7 +259,7 @@ static volatile slave_reg_buf_t* slave_get_reg_buffer(slave_reg_addr_t reg_addr)
 	return reg_buffer;
 }
 
-const slave_register_group_entry_t* slave_get_reg_group(slave_reg_addr_t reg_addr) {
+const slave_register_group_entry_t* slave_get_reg_group(const slave_reg_addr_t reg_addr) {
 
 	const slave_register_group_entry_t		*reg_group = NULL;
 	uint8_t									reg_grp_no;
@@ -271,6 +316,7 @@ static void slave_read_reg(slave_reg_addr_t reg_addr, slave_reg_data_t *data) {
 	reg_buffer = slave_get_reg_buffer(reg_addr);
 	if (reg_buffer) {
 		*data = reg_buffer->value;
+		slave_regs_set_irq_pending_event(reg_buffer, false);
 	}
 }
 
@@ -286,14 +332,39 @@ void slave_irq_read_reg(slave_reg_addr_t reg_addr, slave_reg_data_t *data) {
 	slave_connect = true;
 }
 
-void slave_set_regs_data(volatile slave_reg_buf_t *reg_buffer, uint16_t reg_addr, slave_reg_data_t *data, uint16_t data_length) {
+void slave_set_regs_data(const slave_reg_addr_t base_reg_addr, slave_reg_data_t *data, uint16_t data_length) {
 
 	uint16_t								data_no;
+	bool									generate_irq_ctrl;
+	const slave_register_group_entry_t		*reg_group;
+	volatile slave_reg_buf_t 				*reg_buffer;
 
-	for (data_no = 0; data_no < data_length; data_no++) {
-		SLAVE_REGS_CRIDT_ENTER();
-		(reg_buffer + reg_addr + data_no)->value = *(data + data_no);
-		SLAVE_REGS_CRIDT_EXIT();
+	if (data && data_length) {
+		reg_group = slave_get_reg_group(base_reg_addr);
+		if (reg_group) {
+			if ((base_reg_addr + data_length) < (reg_group->base_addr + reg_group->reg_buffer_length)) {
+				for (data_no = 0; data_no < data_length; data_no++) {
+					reg_buffer = reg_group->reg_buffer + base_reg_addr - reg_group->base_addr + data_no;
+					generate_irq_ctrl = slave_regs_get_generate_irq(reg_buffer);
+					if (generate_irq_ctrl) {
+						SLAVE_REGS_CRIDT_ENTER();
+						if (*(data + data_no) != reg_buffer->value) {
+							reg_buffer->value = *(data + data_no);
+							slave_regs_set_irq_pending_event(reg_buffer, true);
+							reg_group->data->irq_pending = true;
+						}
+						SLAVE_REGS_CRIDT_EXIT();
+						if (reg_group->data->irq_pending) {
+							msz_t200_spi_slave_generate_irq(true);
+						}
+					} else {
+						SLAVE_REGS_CRIDT_ENTER();
+						reg_buffer->value = *(data + data_no);
+						SLAVE_REGS_CRIDT_EXIT();
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -313,11 +384,12 @@ static void slave_poll_write_function(void) {
 	uint8_t									reg_grp_no;
 	uint16_t								reg_no;
 	volatile slave_reg_buf_t				*reg_buffer = NULL;
-	bool									was_write;
+	bool									was_write, irq_pending, new_irq_pending;
 
 	for (reg_grp_no = 0; reg_grp_no < I2C_SLAVE_REGISTER_GROUP_NUMBER; reg_grp_no++) {
 		SLAVE_REGS_CRIDT_ENTER();
 		was_write = slave_register_group[reg_grp_no].data->write;
+		irq_pending = slave_register_group[reg_grp_no].data->irq_pending;
 		SLAVE_REGS_CRIDT_EXIT();
 		if (was_write) {
 			for (reg_no = 0; reg_no < slave_register_group[reg_grp_no].reg_buffer_length; reg_no++) {
@@ -336,6 +408,27 @@ static void slave_poll_write_function(void) {
 					}
 					SLAVE_REGS_CRIDT_EXIT();
 				}
+			}
+		}
+
+
+		if (irq_pending) {
+			new_irq_pending = false;
+			for (reg_no = 0; reg_no < slave_register_group[reg_grp_no].reg_buffer_length; reg_no++) {
+				reg_buffer = slave_register_group[reg_grp_no].reg_buffer + reg_no;
+				if (slave_regs_get_generate_irq(reg_buffer)) {
+					SLAVE_REGS_CRIDT_ENTER();
+					if (slave_regs_get_irq_pending_event(reg_buffer)) {
+						new_irq_pending |= true;
+					}
+					SLAVE_REGS_CRIDT_EXIT();
+				}
+			}
+			if (new_irq_pending == false) {
+				SLAVE_REGS_CRIDT_ENTER();
+				slave_register_group[reg_grp_no].data->irq_pending = false;
+				SLAVE_REGS_CRIDT_EXIT();
+				msz_t200_spi_slave_generate_irq(false);
 			}
 		}
 	}

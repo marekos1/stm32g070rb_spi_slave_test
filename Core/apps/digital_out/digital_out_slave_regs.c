@@ -10,13 +10,14 @@
 
 #include "slave_regs/slave_regs.h"
 #include "digital_out/digital_out_slave_regs.h"
+#include "digital_out/digital_out_api.h"
 
 volatile slave_reg_buf_t digital_out_group_regs[DIGITAL_OUT_SLAVE_REG_NR_MAX];
 
 
 static void digital_out_group_slave_regs_init(volatile slave_reg_buf_t *regs, uint16_t regs_number) {
 
-	slave_registers_init_value((regs + DIGITAL_OUT_SLAVE_REG_OUTPUT_STATE), 0, true, true, false);
+	slave_registers_init_value((regs + DIGITAL_OUT_SLAVE_REG_OUTPUT_STATE), 0, true, true, false, false);
 }
 
 static slave_reg_data_t digital_out_group_slave_regs_change_state(slave_reg_data_t new_reg_value) {
@@ -33,6 +34,9 @@ static slave_reg_data_t digital_out_group_slave_regs_change_state(slave_reg_data
 		for (digital_out_no = 0; digital_out_no < DIGITAL_OUTPUTS_PER_MODULE; digital_out_no++) {
 			output_state = (module_output_state & (1 << digital_out_no));
 			rc = digital_out_set_state_by_apps(0, module_no, digital_out_no, output_state);
+			if (rc != MSZ_RC_OK) {
+				T_DG_DIGI_OUT("Output set fail!");
+			}
 		}
 	}
 

@@ -538,6 +538,7 @@ static uint32_t msz_t200_spi_do_read_operation(uint8_t *data, const uint32_t reg
 	uint32_t								operation_no, reg_value;
 
 	for (operation_no = 0; operation_no < operation_count; operation_no++) {
+#if 0
 		if ((operation_no + reg_addr) == 5) {
 			reg_value = msz_t200_spi_do_read_operation_test_reg_val(operation_no + reg_addr);
 		} else if ((operation_no + reg_addr) > 6) {
@@ -545,6 +546,9 @@ static uint32_t msz_t200_spi_do_read_operation(uint8_t *data, const uint32_t reg
 		} else {
 			reg_value = msz_t200_spi_read_register(reg_addr + operation_no);
 		}
+#else
+		reg_value = msz_t200_spi_read_register(reg_addr + operation_no);
+#endif
 		msz_t200_spi_set_32bdata_value(data + (operation_no * 4), reg_value);
 		read_data_length += 4;
 	}
@@ -625,7 +629,7 @@ static msz_rc_t msz_t200_spi_operation(SPI_HandleTypeDef *hspi, bool *is_write_o
 			spi_data_idx += msz_t200_spi_do_read_operation(&spi_data[8], reg_addr, operation_count);
 			rc = msz_t200_spi_handle_read_operation(hspi, spi_data, spi_data_idx);
 		}
-		T_DG_SPISL("Operation %7s Base addr: %8u, number %u", *is_write_operation ? "Write" : "Read", reg_addr, operation_count);
+//		T_DG_SPISL("Operation %7s Base addr: %8u, number %u", *is_write_operation ? "Write" : "Read", reg_addr, operation_count);
 		if (rc != MSZ_RC_OK) {
 			if (msz_t200_spi_end_txrx_operation(hspi, 1, tickstart) != HAL_OK) {
 				hspi->ErrorCode = HAL_SPI_ERROR_FLAG;
@@ -738,6 +742,12 @@ bool msz_t200_spi_slave_poll(void) {
 #endif /* CONFIG_SPI_SLAVE_CS_IRQ */
 
 	return wr_operation;
+}
+
+void msz_t200_spi_slave_generate_irq(const bool irq) {
+
+	T_DG_SPISL("Enter irq: %u", irq);
+	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, irq ? GPIO_PIN_RESET : GPIO_PIN_SET);
 }
 
 msz_rc_t msz_t200_spi_slave_init(void) {

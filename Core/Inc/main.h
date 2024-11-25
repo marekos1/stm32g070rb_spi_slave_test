@@ -111,6 +111,10 @@ void Error_Handler(void);
 #define TEST3_GPIO_Port GPIOA			//Arduino D7
 #define TEST3_Pin		GPIO_PIN_8
 
+
+#define IRQ_REQUEST_GPIO_Port			GPIOB
+#define IRQ_REQUEST_Pin 				GPIO_PIN_14			//Arduino D6
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
