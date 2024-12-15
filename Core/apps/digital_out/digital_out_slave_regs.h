@@ -13,7 +13,7 @@
 
 
 
-#define DIGITAL_OUT_SLAVE_REG_BASE_ADDR	14
+#define DIGITAL_OUT_SLAVE_REG_BASE_ADDR	2000
 
 
 typedef enum {

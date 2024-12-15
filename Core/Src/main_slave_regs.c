@@ -117,11 +117,7 @@ static slave_reg_data_t registers_unit1_output_state_change(slave_reg_data_t new
 
 	slave_reg_data_t						reg_val = new_reg_value;
 
-	if (reg_val) {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	} else {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	}
+
 
 	return reg_val;
 }

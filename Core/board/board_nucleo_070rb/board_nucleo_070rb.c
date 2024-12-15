@@ -87,6 +87,37 @@ bool board_T200_cpu_v01_read_digital_input_state(const msz_t200_module_no_t modu
 
 
 
+msz_rc_t board_nucleo_070rb_digital_output_init(const msz_t200_module_no_t module_no, const digital_out_no_t digital_out_no, const bool enable) {
+
+	msz_rc_t								rc = MSZ_RC_OK;
+	GPIO_InitTypeDef 						GPIO_InitStruct = {0};
+
+	if ((module_no == 2) && (digital_out_no == 0)) {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+		if (enable) {
+			GPIO_InitStruct.Pin = LED_Pin;
+			GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+			GPIO_InitStruct.Pull = GPIO_NOPULL;
+			GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+			HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+		} else {
+			HAL_GPIO_DeInit(LED_GPIO_Port, LED_Pin);
+		}
+	}
+
+	return rc;
+}
+
+msz_rc_t board_nucleo_070rb_set_digital_output_state(const msz_t200_module_no_t module_no, const digital_out_no_t digital_out_no, const bool new_state) {
+
+	msz_rc_t								rc = MSZ_RC_OK;
+
+	if ((module_no == 2) && (digital_out_no == 0)) {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, new_state);
+	}
+
+	return rc;
+}
 
 
 
