@@ -12,9 +12,10 @@
 #include "types.h"
 
 
-msz_rc_t board_T200_cpu_v01_init_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable);
+msz_rc_t board_nucleo_070rb_digital_input_init(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable);
 
-bool board_T200_cpu_v01_read_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no);
+bool board_nucleo_070rb_digital_in_get_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no);
+
 
 
 msz_rc_t board_nucleo_070rb_digital_output_init(const msz_t200_module_no_t module_no, const digital_out_no_t digital_out_no, const bool enable);

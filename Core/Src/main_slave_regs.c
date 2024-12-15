@@ -141,9 +141,9 @@ static void main_group_slave_regs_init(volatile slave_reg_buf_t *main_group_regs
 	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT4_CONF), 0, true, true, false, false);
 
 	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT1_STATUS), 0, false, true, false, true);
-	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT2_STATUS), 0, false, true, false, false);
-	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT3_STATUS), 0, false, true, false, false);
-	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT4_STATUS), 0, false, true, false, false);
+	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT2_STATUS), 0, false, true, false, true);
+	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT3_STATUS), 0, false, true, false, true);
+	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT4_STATUS), 0, false, true, false, true);
 
 	slave_registers_init_value((main_group_regs + MAIN_SLAVE_REG_MODULE_UNIT1_OUTPUT_STATE), 0, true, true, false, false);
 }
@@ -162,17 +162,19 @@ void main_group_slave_status_set(bool system_ready) {
 	slave_set_regs_data(MAIN_SLAVE_REG_BASE_ADDR + MAIN_SLAVE_REG_MODULE_READY, &reg_data, 1);
 }
 
-void main_group_slave_status_digital_in_state_set(uint32_t unit, uint32_t module, uint32_t input, bool state) {
+void main_group_slave_status_instance_state_set(const msz_t200_unit_no_t unit_no, const msz_t200_module_no_t module_no, const uint32_t inst_no,	const bool state) {
 
 	slave_reg_data_t						reg_data;
 
-	reg_data = 0;
+	slave_get_regs_data(slave_main_group_regs, MAIN_SLAVE_REG_MODULE_UNIT1_STATUS + unit_no, &reg_data, 1);
+	reg_data &= ~(1 << (module_no * DIGITAL_INPUTS_PER_MODULE + inst_no));
 	if (state) {
-		reg_data |= (1 << 0);
+		reg_data |= (1 << (module_no * DIGITAL_INPUTS_PER_MODULE + inst_no));
 	}
-
-	slave_set_regs_data(MAIN_SLAVE_REG_BASE_ADDR + MAIN_SLAVE_REG_MODULE_UNIT1_STATUS, &reg_data, 1);
+	slave_set_regs_data(MAIN_SLAVE_REG_BASE_ADDR + MAIN_SLAVE_REG_MODULE_UNIT1_STATUS + unit_no, &reg_data, 1);
 }
+
+
 
 bool main_group_slave_regs_req(slave_regs_poll_func_req_t req, uint16_t reg_addr, slave_reg_data_t data) {
 

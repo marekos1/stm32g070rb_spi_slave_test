@@ -15,7 +15,7 @@
 
 #include "gpio/gpio.h"
 #include "uart/uart.h"
-
+#if 0
 static const gpio_portpin_t board_nucleo_g070rb_digital_input_gpio[MSZ_T200_MODULES][DIGITAL_INPUTS_PER_MODULE] = {
 
 	/* Module 0 */ {
@@ -62,26 +62,37 @@ static const gpio_portpin_t board_nucleo_g070rb_digital_input_gpio[MSZ_T200_MODU
 	{GPIOA, 	3},
 	}
 };
+#endif
 
-
-msz_rc_t board_T200_cpu_v01_init_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable) {
+msz_rc_t board_nucleo_070rb_digital_input_init(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
-	uint16_t								gpio_pin_mask;
+	GPIO_InitTypeDef 						GPIO_InitStruct = {0};
 
-	gpio_pin_mask = 1 << board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].pin;
-	if (enable) {
-		rc = gpio_init_input(board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].port, gpio_pin_mask, GPIO_SPEED_LOW, GPIO_PULL_UP);
-	} else {
-		rc = gpio_init_default(board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].port, gpio_pin_mask);
+	if ((module_no == 0) && (digital_in_no == 0)) {
+		if (enable) {
+			GPIO_InitStruct.Pin = BUTTON_Pin;
+			GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+			GPIO_InitStruct.Pull = GPIO_NOPULL;
+			GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+			HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
+		} else {
+			HAL_GPIO_DeInit(BUTTON_GPIO_Port, BUTTON_Pin);
+		}
 	}
 
 	return rc;
 }
 
-bool board_T200_cpu_v01_read_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no) {
+bool board_nucleo_070rb_digital_in_get_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no) {
 
-	return gpio_get_input_state(board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].port, board_nucleo_g070rb_digital_input_gpio[module_no][digital_in_no].pin);
+	bool									state = false;
+
+	if ((module_no == 0) && (digital_in_no == 0)) {
+		state = (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_RESET);
+	}
+
+	return state;
 }
 
 

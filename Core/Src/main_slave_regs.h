@@ -55,7 +55,7 @@ bool main_group_slave_regs_req(slave_regs_poll_func_req_t req, uint16_t reg_addr
 
 void main_group_slave_status_set(bool system_ready);
 
-void main_group_slave_status_digital_in_state_set(uint32_t unit, uint32_t module, uint32_t input, bool state);
+void main_group_slave_status_instance_state_set(const msz_t200_unit_no_t unit_no, const msz_t200_module_no_t module_no, const uint32_t inst_no, const bool state);
 
 
 #endif /* INC_MAIN_SLAVE_REGS_H_ */

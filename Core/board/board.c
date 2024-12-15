@@ -17,26 +17,31 @@
 
 
 
-msz_rc_t board_init_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable) {
+msz_rc_t board_digital_input_init(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable) {
+
+	msz_rc_t								rc = MSZ_RC_OK;
 
 #if BOARD_TYPE == BOARD_T200_CPU_V01
 //ms	return board_T200_cpu_v01_init_digital_input_state(module_no, digital_in_no, enable);
 #elif BOARD_TYPE == BOARD_NUCLEO_G070RB
-//ms	return board_T200_cpu_v01_init_digital_input_state(module_no, digital_in_no, enable);
+	rc = board_nucleo_070rb_digital_input_init(module_no, digital_in_no, enable);
+#else
+	rc = MSZ_RC_ERR_BOARD_UNSUPPORTED;
 #endif /* BOARD_TYPE */
 
-	return MSZ_RC_OK;
+	return rc;
 }
 
-bool board_read_digital_input_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no) {
+bool board_digital_in_get_state(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no) {
 
+	bool									state = false;
 #if BOARD_TYPE == BOARD_T200_CPU_V01
 //ms	return board_T200_cpu_v01_read_digital_input_state(module_no, digital_in_no);
 #elif BOARD_TYPE == BOARD_NUCLEO_G070RB
-//ms	return board_T200_cpu_v01_read_digital_input_state(module_no, digital_in_no);
+	state = board_nucleo_070rb_digital_in_get_state(module_no, digital_in_no);
 #endif /* BOARD_TYPE */
 
-	return true;
+	return state;
 }
 
 

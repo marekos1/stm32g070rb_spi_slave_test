@@ -13,6 +13,7 @@
 #include "board.h"
 #include "digital_out/digital_out.h"
 #include "trace/trace.h"
+#include "main_slave_regs.h"
 
 
 static digital_out_base_t digital_out_base;
@@ -57,6 +58,9 @@ msz_rc_t digital_out_set_state_by_apps(const msz_t200_unit_no_t unit_no, const m
 				rc = digital_out_set_state(digital_out_cap_idx, state);
 			}
 			DIGITAL_OUT_CRIDT_EXIT();
+			if (rc == MSZ_RC_OK) {
+				main_group_slave_status_instance_state_set(unit_no, module_no, digital_out_no, state);
+			}
 		} else {
 			rc = MSZ_RC_MODULE_NO_OUTSIDE_THE_RANGE;
 		}

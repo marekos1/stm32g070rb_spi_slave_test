@@ -120,9 +120,7 @@ int main(void) {
 
 	uint32_t 								led_ctr, current_1ms_ctr_tick, test_ctr, irq_req_ctr;
 	bool									connect = false, irq_req_state = false;
-	bool									input_state = false, prev_input_state = false;
-
-	uint32_t		digital_in_ctr, _1sec_tick_ctr;
+	uint32_t								_1sec_tick_ctr;
 
 
 	/* USER CODE END 1 */
@@ -156,29 +154,11 @@ int main(void) {
 	trace_cli_init();
 	T_DG_MAIN("Enter");
 
-
-
-
-	/*
-	for (led_ctr = 0; led_ctr < 100; led_ctr++) {
-		TEST3_PIN_UP();
-		//TEST2_PIN_DOWN();
-		HAL_Delay(10);
-		TEST3_PIN_DOWN();
-//		TEST2_PIN_UP();
-		HAL_Delay(10);
-	}
-	*/
-
 	led_ctr = 0;
 	test_ctr = 0;
 	irq_req_ctr = 0;
 	current_1ms_ctr_tick = 0;
 	slave_registers_init();
-
-	digital_in_ctr = 0;
-	/* USER CODE END 2 */
-
 
 
 	MAIN_TEST1_PIN_UP();
@@ -195,54 +175,22 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		/* USER CODE END WHILE */
-
-	//	uart_proces();
-#if 1
 
 		connect = slave_registers_poll(current_1ms_ctr_tick);
 		current_1ms_ctr_tick++;
 
-
-
-#if 0
-		if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_SET) {
-
-			main_group_slave_status_digital_in_state_set(0, 0, 0, false);
-		} else {
-
-			main_group_slave_status_digital_in_state_set(0, 0, 0, true);
-		}
-#else
-		input_state = (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_RESET);
-
-		if (input_state != prev_input_state) {
-			main_group_slave_status_digital_in_state_set(0, 0, 0, input_state);
-			prev_input_state = input_state;
-		}
-#endif
-
-#else
-		spi_slave_init();
-#endif
 		if (connect && (++led_ctr > 10)) {
 			led_ctr = 0;
 		} else {
 			led_ctr = 0;
 		}
-		/* USER CODE BEGIN 3 */
 
-		if (++digital_in_ctr >= 10) {
-			digital_in_ctr = 0;
-			digital_in_poll();
-		}
+		digital_in_poll();
 
 		if (system_1ms_timer_tick_counter > _1sec_tick_ctr) {
 			_1sec_tick_ctr = system_1ms_timer_tick_counter;
 			_1sec_tick_ctr += 1000;
 			T_DG_MAIN("1. led_ctr: %12u", test_ctr++);
-	//		T_DG_MAIN("2. led_ctr: %12u", test_ctr++);
-	//		T_DG_MAIN("3. led_ctr: %12u", test_ctr++);
 			if (++irq_req_ctr >= 10) {
 				irq_req_ctr = 0;
 				if (irq_req_state) {
@@ -250,8 +198,6 @@ int main(void) {
 				} else {
 					irq_req_state = true;
 				}
-			//	T_DG_MAIN("IRQ request state: %u", irq_req_state);
-			//	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, irq_req_state ? GPIO_PIN_RESET : GPIO_PIN_SET);
 			}
 		}
 	}
@@ -348,16 +294,6 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET);
 
-#if 0
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	/*Configure GPIO pin : LED_Pin */
-	GPIO_InitStruct.Pin = LED_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
-#endif
-
 	GPIO_InitStruct.Pin = TEST1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -376,17 +312,7 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(TEST3_GPIO_Port, &GPIO_InitStruct);
 
-
-	GPIO_InitStruct.Pin = GPIO_PIN_13;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
-
-
-
 	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, GPIO_PIN_SET);
-
 	GPIO_InitStruct.Pin = IRQ_REQUEST_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_PULLUP;

@@ -27,9 +27,14 @@ typedef struct {
 } digital_in_cap_t;
 
 typedef struct {
-	digital_in_cap_t 						cap[DIGITAL_IN_TOTAL_INPUT];
-	bool									cap_change[MSZ_T200_UNITS];
+	bool									state;
+} digital_in_input_state_t;
 
+typedef struct {
+	digital_in_cap_t 						cap[DIGITAL_IN_TOTAL_INPUT];
+	bool									cap_change[MSZ_T200_UNITS][MSZ_T200_MODULES];
+
+	digital_in_input_state_t				status[DIGITAL_IN_TOTAL_INPUT];
 } digital_in_base_t;
 
 #endif /* SRC_DIGITAL_IN_DIGIRTAL_IN_H_ */
