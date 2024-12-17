@@ -10,6 +10,8 @@
 
 #include "main.h"
 
+void msz_t200_spi_slave_input_irq(bool active);
+
 bool msz_t200_spi_slave_poll(void);
 
 void msz_t200_spi_slave_generate_irq(const bool irq);

@@ -112,12 +112,16 @@ void Error_Handler(void);
 #define TEST3_Pin		GPIO_PIN_8
 
 
-#define IRQ_REQUEST_GPIO_Port			GPIOB
-#define IRQ_REQUEST_Pin 				GPIO_PIN_14			//Arduino D6
+#define SPI_SLAVE_IRQ_REQUEST_GPIO_Port			GPIOB
+#define SPI_SLAVE_IRQ_REQUEST_Pin 				GPIO_PIN_14			//Arduino D6
 
-/* USER CODE BEGIN Private defines */
+#define SPI_SLAVE_CHIP_SELECT_GPIO_Port			GPIOA
+#define SPI_SLAVE_CHIP_SELECT_Pin 				GPIO_PIN_4			//Arduino D6
 
-/* USER CODE END Private defines */
+
+
+
+
 
 #ifdef __cplusplus
 }

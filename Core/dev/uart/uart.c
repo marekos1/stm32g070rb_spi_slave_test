@@ -414,12 +414,12 @@ static msz_rc_t stm32g070_uart_init_gpio_pins(const uart_dev_t *dev, bool rx_ena
 	msz_rc_t									rc = MSZ_RC_OK;
 
 	if (tx_enable) {
-		rc |= gpio_init_alt(dev->msz->tx_gpio_pin.gpio_port, (1 << dev->msz->tx_gpio_pin.gpio_pin), false, GPIO_SPEED_HIGH,
-							GPIO_NO_PULL_UP_NO_PULL_DOWN, dev->msz->tx_gpio_pin.alt_func);
+		rc |= gpio_init_as_alternate_func(dev->msz->tx_gpio_pin.gpio_port, dev->msz->tx_gpio_pin.gpio_pin, false, GPIO_SPEED_HIGH,
+																						GPIO_NO_PULL_UP_NO_PULL_DOWN, dev->msz->tx_gpio_pin.alt_func);
 	}
 	if (rx_enable) {
-		rc |= gpio_init_alt(dev->msz->rx_gpio_pin.gpio_port, (1 << dev->msz->rx_gpio_pin.gpio_pin), false, GPIO_SPEED_HIGH,
-							GPIO_PULL_UP, dev->msz->rx_gpio_pin.alt_func);
+		rc |= gpio_init_as_alternate_func(dev->msz->rx_gpio_pin.gpio_port, dev->msz->rx_gpio_pin.gpio_pin, false, GPIO_SPEED_HIGH,
+																						GPIO_PULL_UP, dev->msz->rx_gpio_pin.alt_func);
 	}
 
 	return rc;
@@ -549,8 +549,8 @@ static msz_rc_t stm32g070_uart_deinit_gpio_pins(const uart_dev_t *dev) {
 
 	msz_rc_t									rc = MSZ_RC_OK;
 
-	rc = gpio_init_default(dev->msz->tx_gpio_pin.gpio_port, (1 << dev->msz->tx_gpio_pin.gpio_pin));
-	rc = gpio_init_default(dev->msz->rx_gpio_pin.gpio_port, (1 << dev->msz->rx_gpio_pin.gpio_pin));
+	rc = gpio_init_as_default(dev->msz->tx_gpio_pin.gpio_port, dev->msz->tx_gpio_pin.gpio_pin);
+	rc = gpio_init_as_default(dev->msz->rx_gpio_pin.gpio_port, dev->msz->rx_gpio_pin.gpio_pin);
 
 	return rc;
 }

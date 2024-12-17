@@ -312,12 +312,7 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(TEST3_GPIO_Port, &GPIO_InitStruct);
 
-	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, GPIO_PIN_SET);
-	GPIO_InitStruct.Pin = IRQ_REQUEST_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(IRQ_REQUEST_GPIO_Port, &GPIO_InitStruct);
+
 
 }
 

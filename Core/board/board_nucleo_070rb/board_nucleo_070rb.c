@@ -67,17 +67,12 @@ static const gpio_portpin_t board_nucleo_g070rb_digital_input_gpio[MSZ_T200_MODU
 msz_rc_t board_nucleo_070rb_digital_input_init(const msz_t200_module_no_t module_no, const digital_in_no_t digital_in_no, const bool enable) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
-	GPIO_InitTypeDef 						GPIO_InitStruct = {0};
 
 	if ((module_no == 0) && (digital_in_no == 0)) {
 		if (enable) {
-			GPIO_InitStruct.Pin = BUTTON_Pin;
-			GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-			GPIO_InitStruct.Pull = GPIO_NOPULL;
-			GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-			HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
+			rc = gpio_init_pin_mask_as_input(BUTTON_GPIO_Port, BUTTON_Pin, GPIO_SPEED_LOW, GPIO_NO_PULL_UP_NO_PULL_DOWN);
 		} else {
-			HAL_GPIO_DeInit(BUTTON_GPIO_Port, BUTTON_Pin);
+			rc =gpio_init_pin_mask_as_default(BUTTON_GPIO_Port, BUTTON_Pin);
 		}
 	}
 
@@ -89,30 +84,21 @@ bool board_nucleo_070rb_digital_in_get_state(const msz_t200_module_no_t module_n
 	bool									state = false;
 
 	if ((module_no == 0) && (digital_in_no == 0)) {
-		state = (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, GPIO_PIN_13) == GPIO_PIN_RESET);
+		state = gpio_pin_mask_get_input_state(BUTTON_GPIO_Port, BUTTON_Pin) == false;
 	}
 
 	return state;
 }
 
-
-
-
 msz_rc_t board_nucleo_070rb_digital_output_init(const msz_t200_module_no_t module_no, const digital_out_no_t digital_out_no, const bool enable) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
-	GPIO_InitTypeDef 						GPIO_InitStruct = {0};
 
 	if ((module_no == 2) && (digital_out_no == 0)) {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 		if (enable) {
-			GPIO_InitStruct.Pin = LED_Pin;
-			GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-			GPIO_InitStruct.Pull = GPIO_NOPULL;
-			GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-			HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+			rc = gpio_init_pin_mask_as_output(LED_GPIO_Port, LED_Pin, false, GPIO_SPEED_HIGH, GPIO_NO_PULL_UP_NO_PULL_DOWN);
 		} else {
-			HAL_GPIO_DeInit(LED_GPIO_Port, LED_Pin);
+			rc =gpio_init_pin_mask_as_default(LED_GPIO_Port, LED_Pin);
 		}
 	}
 
@@ -124,7 +110,8 @@ msz_rc_t board_nucleo_070rb_set_digital_output_state(const msz_t200_module_no_t 
 	msz_rc_t								rc = MSZ_RC_OK;
 
 	if ((module_no == 2) && (digital_out_no == 0)) {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, new_state);
+		gpio_pin_mask_set_output_state(LED_GPIO_Port, LED_Pin, new_state);
+
 	}
 
 	return rc;

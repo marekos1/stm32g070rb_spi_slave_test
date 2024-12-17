@@ -153,11 +153,6 @@ static uint32_t msz_t200_spi_get_crc32(uint8_t *data) {
 	return crc32;
 }
 
-
-
-
-
-
 static HAL_StatusTypeDef my_SPI_WaitFifoStateUntilTimeout(SPI_HandleTypeDef *hspi, uint32_t Fifo, uint32_t State, uint32_t Timeout, uint32_t Tickstart) {
 
 	__IO uint32_t count;
@@ -282,9 +277,6 @@ static HAL_StatusTypeDef my_SPI_WaitFlagStateUntilTimeout(SPI_HandleTypeDef *hsp
 	return HAL_OK;
 }
 
-
-
-
 static HAL_StatusTypeDef msz_t200_spi_end_txrx_operation(SPI_HandleTypeDef *hspi, uint32_t Timeout, uint32_t Tickstart) {
 
 	/* Control if the TX fifo is empty */
@@ -311,9 +303,6 @@ static HAL_StatusTypeDef msz_t200_spi_end_txrx_operation(SPI_HandleTypeDef *hspi
 
 	return HAL_OK;
 }
-
-
-
 
 static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, uint32_t *tickstart) {
 
@@ -355,13 +344,6 @@ static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, u
 
 	return errorcode;
 }
-
-
-
-
-
-
-
 
 static msz_rc_t msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, const uint8_t *data_write, uint8_t *data_read, const uint32_t data_length, const uint32_t timeout_ms) {
 
@@ -445,7 +427,6 @@ static uint32_t msz_t200_crc32_calc(uint8_t *data, const uint32_t data_len) {
 	return crc32;
 }
 
-
 static msz_rc_t msz_t200_spi_recv_header_const_value(SPI_HandleTypeDef *hspi, uint8_t *spi_data, const uint16_t spi_data_idx) {
 
 	msz_rc_t								rc;
@@ -479,12 +460,6 @@ static msz_rc_t msz_t200_spi_recv_header_variable_value(SPI_HandleTypeDef *hspi,
 	return rc;
 }
 
-
-
-
-
-
-
 static void msz_t200_spi_write_register(const uint32_t reg_addr, const uint32_t reg_value) {
 
 	slave_irq_write_reg(reg_addr, reg_value);
@@ -499,10 +474,6 @@ static uint32_t msz_t200_spi_read_register(const uint32_t reg_addr) {
 	return reg_value;
 }
 
-
-
-
-
 static void msz_t200_spi_do_write_operation(const uint8_t *data, const uint32_t data_length, const uint32_t reg_addr, const uint8_t operation_count) {
 
 	uint32_t								operation_no, reg_value;
@@ -514,41 +485,13 @@ static void msz_t200_spi_do_write_operation(const uint8_t *data, const uint32_t 
 	}
 }
 
-static uint32_t msz_t200_spi_do_read_operation_test_reg_val(const uint8_t in_val) {
-
-	uint32_t								value;
-	uint8_t									val_wr = in_val & 0x0F;
-
-	value = 0;
-	value |= (val_wr << 28);
-	value |= (1 << 24);
-	value |= (val_wr << 20);
-	value |= (2 << 16);
-	value |= (val_wr << 12);
-	value |= (3 << 8);
-	value |= (val_wr << 4);
-	value |= (4 << 0);
-
-	return value;
-}
-
 static uint32_t msz_t200_spi_do_read_operation(uint8_t *data, const uint32_t reg_addr, const uint32_t operation_count) {
 
 	uint32_t								read_data_length = 0;
 	uint32_t								operation_no, reg_value;
 
 	for (operation_no = 0; operation_no < operation_count; operation_no++) {
-#if 0
-		if ((operation_no + reg_addr) == 5) {
-			reg_value = msz_t200_spi_do_read_operation_test_reg_val(operation_no + reg_addr);
-		} else if ((operation_no + reg_addr) > 6) {
-			reg_value = msz_t200_spi_do_read_operation_test_reg_val(operation_no + reg_addr);
-		} else {
-			reg_value = msz_t200_spi_read_register(reg_addr + operation_no);
-		}
-#else
 		reg_value = msz_t200_spi_read_register(reg_addr + operation_no);
-#endif
 		msz_t200_spi_set_32bdata_value(data + (operation_no * 4), reg_value);
 		read_data_length += 4;
 	}
@@ -747,27 +690,38 @@ bool msz_t200_spi_slave_poll(void) {
 void msz_t200_spi_slave_generate_irq(const bool irq) {
 
 	T_DG_SPISL("Enter irq: %u", irq);
-	HAL_GPIO_WritePin(IRQ_REQUEST_GPIO_Port, IRQ_REQUEST_Pin, irq ? GPIO_PIN_RESET : GPIO_PIN_SET);
+#if CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ
+	HAL_GPIO_WritePin(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin, irq ? GPIO_PIN_RESET : GPIO_PIN_SET);
+#endif /* CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ */
 }
 
 msz_rc_t msz_t200_spi_slave_init(void) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
+	GPIO_InitTypeDef 						GPIO_InitStruct = { 0 };
+
+#if CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ
+
+	HAL_GPIO_WritePin(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin, GPIO_PIN_SET);
+	GPIO_InitStruct.Pin = SPI_SLAVE_IRQ_REQUEST_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, &GPIO_InitStruct);
+
+#endif /* CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ */
 
 #if CONFIG_SPI_SLAVE_CS_IRQ
 
-	gpio_init_input(GPIOA, (uint16_t)(1 << 4), GPIO_SPEED_HIGH, GPIO_PULL_UP);
+	gpio_init_as_input(SPI_SLAVE_CHIP_SELECT_GPIO_Port, SPI_SLAVE_CHIP_SELECT_Pin, GPIO_SPEED_HIGH, GPIO_PULL_UP);
 	NVIC_EnableIRQ(EXTI4_15_IRQn);
 
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
-
-
 	/*Configure GPIO pin : LED_Pin */
-	GPIO_InitStruct.Pin = GPIO_PIN_4;
+	GPIO_InitStruct.Pin = SPI_SLAVE_CHIP_SELECT_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_INPUT | GPIO_MODE_IT_RISING_FALLING;
 	GPIO_InitStruct.Pull = GPIO_PULLUP;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	HAL_GPIO_Init(SPI_SLAVE_CHIP_SELECT_GPIO_Port, &GPIO_InitStruct);
 
 #else /* CONFIG_SPI_SLAVE_CS_IRQ */
 
