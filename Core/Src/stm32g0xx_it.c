@@ -137,13 +137,13 @@ void USART2_IRQHandler(void) {
 
 void EXTI4_15_IRQHandler(void) {
 
-	if (__HAL_GPIO_EXTI_GET_FALLING_IT(GPIO_PIN_4) != 0x00u) {
-		__HAL_GPIO_EXTI_CLEAR_FALLING_IT(GPIO_PIN_4);
+	if (__HAL_GPIO_EXTI_GET_FALLING_IT(SPI_SLAVE_CHIP_SELECT_Pin_mask) != 0x00u) {
+		__HAL_GPIO_EXTI_CLEAR_FALLING_IT(SPI_SLAVE_CHIP_SELECT_Pin_mask);
 		msz_t200_spi_slave_input_irq(true);
 	}
 
-	if (__HAL_GPIO_EXTI_GET_RISING_IT(GPIO_PIN_4) != 0x00u) {
-		__HAL_GPIO_EXTI_CLEAR_RISING_IT(GPIO_PIN_4);
+	if (__HAL_GPIO_EXTI_GET_RISING_IT(SPI_SLAVE_CHIP_SELECT_Pin_mask) != 0x00u) {
+		__HAL_GPIO_EXTI_CLEAR_RISING_IT(SPI_SLAVE_CHIP_SELECT_Pin_mask);
 		msz_t200_spi_slave_input_irq(false);
 	}
 }

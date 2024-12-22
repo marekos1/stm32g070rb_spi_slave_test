@@ -28,7 +28,7 @@
 
 #include "digital_in/digital_in_api.h"
 
-
+#include "gpio/gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -87,32 +87,7 @@ uint32_t system_ms_time(void) {
 }
 
 
-#if 0
 
-#define MAIN_TEST1_PIN_UP() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_SET)
-#define MAIN_TEST1_PIN_DOWN() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET)
-#define MAIN_TEST1_PIN_TOGGLE()  	HAL_GPIO_TogglePin(TEST1_GPIO_Port, TEST1_Pin);
-
-#define MAIN_TEST2_PIN_UP() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_SET)
-#define MAIN_TEST2_PIN_DOWN() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET)
-#define MAIN_TEST2_PIN_TOGGLE()		HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin);
-
-#define MAIN_TEST3_PIN_UP() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_SET)
-#define MAIN_TEST3_PIN_DOWN() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET)
-#define MAIN_TEST3_PIN_TOGGLE()		HAL_GPIO_TogglePin(TEST3_GPIO_Port, TEST3_Pin);
-
-#else
-
-#define MAIN_TEST1_PIN_UP()
-#define MAIN_TEST1_PIN_DOWN()
-
-#define MAIN_TEST2_PIN_UP()
-#define MAIN_TEST2_PIN_DOWN()
-
-#define MAIN_TEST3_PIN_UP()
-#define MAIN_TEST3_PIN_DOWN()
-
-#endif
 
 
 int main(void) {
@@ -160,14 +135,6 @@ int main(void) {
 	current_1ms_ctr_tick = 0;
 	slave_registers_init();
 
-
-	MAIN_TEST1_PIN_UP();
-	MAIN_TEST2_PIN_UP();
-	MAIN_TEST3_PIN_UP();
-
-	MAIN_TEST1_PIN_DOWN();
-	MAIN_TEST2_PIN_DOWN();
-	MAIN_TEST3_PIN_DOWN();
 
 
 	_1sec_tick_ctr = 1000;
@@ -282,38 +249,13 @@ static void MX_CRC_Init(void) {
  */
 static void MX_GPIO_Init(void) {
 
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+	gpio_pin_mask_set_output_state(TEST1_GPIO_Port, TEST1_Pin_mask, false);
+	gpio_pin_mask_set_output_state(TEST2_GPIO_Port, TEST2_Pin_mask, false);
+	gpio_pin_mask_set_output_state(TEST3_GPIO_Port, TEST3_Pin_mask, false);
 
-	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET);
-
-	GPIO_InitStruct.Pin = TEST1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(TEST1_GPIO_Port, &GPIO_InitStruct);
-
-	GPIO_InitStruct.Pin = TEST2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(TEST2_GPIO_Port, &GPIO_InitStruct);
-
-	GPIO_InitStruct.Pin = TEST3_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(TEST3_GPIO_Port, &GPIO_InitStruct);
-
-
-
+	gpio_init_pin_mask_as_output(TEST1_GPIO_Port, TEST1_Pin_mask, false, GPIO_SPEED_VERY_HIGH, GPIO_NO_PULL_UP_NO_PULL_DOWN);
+	gpio_init_pin_mask_as_output(TEST2_GPIO_Port, TEST2_Pin_mask, false, GPIO_SPEED_VERY_HIGH, GPIO_NO_PULL_UP_NO_PULL_DOWN);
+	gpio_init_pin_mask_as_output(TEST3_GPIO_Port, TEST3_Pin_mask, false, GPIO_SPEED_VERY_HIGH, GPIO_NO_PULL_UP_NO_PULL_DOWN);
 }
 
 /* USER CODE BEGIN 4 */

@@ -14,6 +14,19 @@
 #include "main.h"
 #include "types.h"
 
+#if defined(GPIOE)
+#define GPIO_GET_INDEX(__GPIOx__)    (((__GPIOx__) == (GPIOA))? 0uL :\
+                                      ((__GPIOx__) == (GPIOB))? 1uL :\
+                                      ((__GPIOx__) == (GPIOC))? 2uL :\
+                                      ((__GPIOx__) == (GPIOD))? 3uL :\
+                                      ((__GPIOx__) == (GPIOE))? 4uL : 5uL)
+#else
+#define GPIO_GET_INDEX(__GPIOx__)    (((__GPIOx__) == (GPIOA))? 0uL :\
+                                      ((__GPIOx__) == (GPIOB))? 1uL :\
+                                      ((__GPIOx__) == (GPIOC))? 2uL :\
+                                      ((__GPIOx__) == (GPIOD))? 3uL : 5uL)
+#endif /* GPIOE */
+
 msz_rc_t gpio_init_port(GPIO_TypeDef *gpio_port);
 
 #endif /* defined(STM32G070xx) */

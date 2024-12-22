@@ -7,89 +7,20 @@
 
 #include "slave_regs/msz_t200_spi_slave/msz_t200_spi_slave_proto_defs.h"
 #include "slave_regs/slave_regs.h"
-#if CONFIG_SPI_SLAVE_CS_IRQ
 #include "gpio/gpio.h"
-#endif /* CONFIG_SPI_SLAVE_CS_IRQ */
 #include "trace/trace.h"
 #include "main.h"
 
 
-
-
-
 static SPI_HandleTypeDef hspi1;
 
+#if CONFIG_SPI_SLAVE_CS_IRQ
+static bool volatile irq_state;
+static bool volatile irq_input_state;
+#endif /* CONFIG_SPI_SLAVE_CS_IRQ */
 
 static const uint8_t 						msz_t200_const_header_recponce_data_tx[MSZ_T200_CONST_HEADER_LENGTH] = {0xA0, 0xA1};
 static const uint8_t						msz_t200_var_header_recponce_data_tx[MSZ_T200_VAR_HEADER_LENGTH] = {0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5};
-
-
-
-
-
-
-
-
-
-#if 1
-
-#define SPI_SLAVE_TEST1_PIN_UP() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_SET)
-#define SPI_SLAVE_TEST1_PIN_DOWN() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET)
-#define SPI_SLAVE_TEST1_PIN_TOGGLE()  	HAL_GPIO_TogglePin(TEST1_GPIO_Port, TEST1_Pin);
-
-#define SPI_SLAVE_TEST2_PIN_UP() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_SET)
-#define SPI_SLAVE_TEST2_PIN_DOWN() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET)
-#define SPI_SLAVE_TEST2_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin);
-
-#define SPI_SLAVE_TEST3_PIN_UP() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_SET)
-#define SPI_SLAVE_TEST3_PIN_DOWN() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET)
-#define SPI_SLAVE_TEST3_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST3_GPIO_Port, TEST3_Pin);
-
-#else
-
-#define SPI_SLAVE_TEST1_PIN_UP()
-#define SPI_SLAVE_TEST1_PIN_DOWN()
-#define SPI_SLAVE_TEST1_PIN_TOGGLE()
-
-#define SPI_SLAVE_TEST2_PIN_UP()
-#define SPI_SLAVE_TEST2_PIN_DOWN()
-#define SPI_SLAVE_TEST2_PIN_TOGGLE()
-
-#define SPI_SLAVE_TEST3_PIN_UP()
-#define SPI_SLAVE_TEST3_PIN_DOWN()
-#define SPI_SLAVE_TEST3_PIN_TOGGLE()
-
-#endif
-
-#if 0
-
-#define SPI_SLAVE_SS_IRQ_TEST1_PIN_UP() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_SET)
-#define SPI_SLAVE_SS_IRQ_TEST1_PIN_DOWN() 		HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin, GPIO_PIN_RESET)
-#define SPI_SLAVE_SS_IRQ_TEST1_PIN_TOGGLE()  	HAL_GPIO_TogglePin(TEST1_GPIO_Port, TEST1_Pin);
-
-#define SPI_SLAVE_SS_IRQ_TEST2_PIN_UP() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_SET)
-#define SPI_SLAVE_SS_IRQ_TEST2_PIN_DOWN() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin, GPIO_PIN_RESET)
-#define SPI_SLAVE_SS_IRQ_TEST2_PIN_TOGGLE()		HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin);
-
-#define SPI_SLAVE_SS_IRQ_TEST3_PIN_UP() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_SET)
-#define SPI_SLAVE_SS_IRQ_TEST3_PIN_DOWN() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin, GPIO_PIN_RESET)
-#define SPI_SLAVE_SS_IRQ_TEST3_PIN_TOGGLE()		HAL_GPIO_TogglePin(TEST3_GPIO_Port, TEST3_Pin);
-
-#else
-
-#define SPI_SLAVE_SS_IRQ_TEST1_PIN_UP()
-#define SPI_SLAVE_SS_IRQ_TEST1_PIN_DOWN()
-#define SPI_SLAVE_SS_IRQ_TEST1_PIN_TOGGLE()
-
-#define SPI_SLAVE_SS_IRQ_TEST2_PIN_UP()
-#define SPI_SLAVE_SS_IRQ_TEST2_PIN_DOWN()
-#define SPI_SLAVE_SS_IRQ_TEST2_PIN_TOGGLE()
-
-#define SPI_SLAVE_SS_IRQ_TEST3_PIN_UP()
-#define SPI_SLAVE_SS_IRQ_TEST3_PIN_DOWN()
-#define SPI_SLAVE_SS_IRQ_TEST3_PIN_TOGGLE()
-
-#endif
 
 
 
@@ -155,11 +86,10 @@ static uint32_t msz_t200_spi_get_crc32(uint8_t *data) {
 
 static HAL_StatusTypeDef my_SPI_WaitFifoStateUntilTimeout(SPI_HandleTypeDef *hspi, uint32_t Fifo, uint32_t State, uint32_t Timeout, uint32_t Tickstart) {
 
-	__IO uint32_t count;
-	uint32_t tmp_timeout;
-	uint32_t tmp_tickstart;
-	__IO uint8_t *ptmpreg8;
-	__IO uint8_t tmpreg8 = 0;
+	__IO uint32_t							count;
+	uint32_t 								tmp_timeout, tmp_tickstart;
+	__IO uint8_t 							*ptmpreg8;
+	__IO uint8_t 							tmpreg8 = 0;
 
 	/* Adjust Timeout value  in case of end of transfer */
 	tmp_timeout = Timeout - (HAL_GetTick() - Tickstart);
@@ -222,10 +152,9 @@ static HAL_StatusTypeDef my_SPI_WaitFifoStateUntilTimeout(SPI_HandleTypeDef *hsp
 }
 
 static HAL_StatusTypeDef my_SPI_WaitFlagStateUntilTimeout(SPI_HandleTypeDef *hspi,
-		uint32_t Flag, FlagStatus State, uint32_t Timeout, uint32_t Tickstart) {
-	__IO uint32_t count;
-	uint32_t tmp_timeout;
-	uint32_t tmp_tickstart;
+														  uint32_t Flag, FlagStatus State, uint32_t Timeout, uint32_t Tickstart) {
+	__IO uint32_t							count;
+	uint32_t 								tmp_timeout, tmp_tickstart;
 
 	/* Adjust Timeout value  in case of end of transfer */
 	tmp_timeout = Timeout - (HAL_GetTick() - Tickstart);
@@ -348,8 +277,7 @@ static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, u
 static msz_rc_t msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, const uint8_t *data_write, uint8_t *data_read, const uint32_t data_length, const uint32_t timeout_ms) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
-	uint32_t 								tx_ctr, rx_ctr;
-	uint32_t								start_time;
+	uint32_t 								tx_ctr, rx_ctr,	start_time;
 
 	if (__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_BSY)) {
 
@@ -373,12 +301,10 @@ static msz_rc_t msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, const uint8_
 			} while (hspi->Instance->SR & SPI_SR_RXNE);
 			break;
 		}
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET) {	//CS up by MASTER
+		if (gpio_pin_mask_get_input_state(SPI_SLAVE_CHIP_SELECT_GPIO_Port, SPI_SLAVE_CHIP_SELECT_Pin_mask) == true) {	//CS up by MASTER
 			rc = MSZ_RC_SPI_SLAVE_MASTER_FINISH_TRANSACTION;
 			break;
 		}
-
-
 		if (hspi->Instance->SR & SPI_SR_TXE) {
 			if (tx_ctr < data_length) {
 				SPI_SLAVE_TEST1_PIN_DOWN();
@@ -590,8 +516,6 @@ static void msz_t200_spi_clear_rx_fifo(SPI_HandleTypeDef *hspi) {
 	} while(__HAL_SPI_GET_FLAG(hspi, SPI_FLAG_RXNE));
 }
 
-
-
 /**
  * @brief SPI1 Initialization Function
  * @param None
@@ -621,11 +545,6 @@ static void MX_SPI1_Init(void) {
 	}
 }
 
-
-
-static bool volatile irq_state;
-static bool volatile irq_input_state;
-
 void msz_t200_spi_slave_input_irq(bool active) {
 
 #if CONFIG_SPI_SLAVE_CS_IRQ
@@ -637,19 +556,15 @@ void msz_t200_spi_slave_input_irq(bool active) {
 #endif /* CONFIG_SPI_SLAVE_CS_IRQ */
 }
 
-
-
 bool msz_t200_spi_slave_poll(void) {
 
-	msz_rc_t								rc;
 	bool									wr_operation;
-
 #if CONFIG_SPI_SLAVE_CS_IRQ
+	msz_rc_t								rc;
 
 	SPI_SLAVE_SS_IRQ_TEST3_PIN_DOWN();
 	if (irq_state) {
 		irq_state = false;
-
 		if (irq_input_state) {
 			SPI_SLAVE_SS_IRQ_TEST2_PIN_UP();
 			SPI_SLAVE_SS_IRQ_TEST1_PIN_DOWN();
@@ -675,13 +590,9 @@ bool msz_t200_spi_slave_poll(void) {
 	}
 
 #else /* CONFIG_SPI_SLAVE_CS_IRQ */
-
-	if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET) {
-		TEST2_POOL_PIN_UP();
-		msz_t200_spi_operation(&hspi1);
-		TEST2_POOL_PIN_DOWN();
+	if (gpio_pin_mask_get_input_state(SPI_SLAVE_CHIP_SELECT_GPIO_Port, SPI_SLAVE_CHIP_SELECT_Pin_mask) == false) {
+		msz_t200_spi_operation(&hspi1, &wr_operation);
 	}
-
 #endif /* CONFIG_SPI_SLAVE_CS_IRQ */
 
 	return wr_operation;
@@ -691,58 +602,27 @@ void msz_t200_spi_slave_generate_irq(const bool irq) {
 
 	T_DG_SPISL("Enter irq: %u", irq);
 #if CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ
-	HAL_GPIO_WritePin(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin, irq ? GPIO_PIN_RESET : GPIO_PIN_SET);
+	gpio_pin_mask_set_output_state(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin_mask, irq ? false : true);
 #endif /* CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ */
 }
 
 msz_rc_t msz_t200_spi_slave_init(void) {
 
 	msz_rc_t								rc = MSZ_RC_OK;
-	GPIO_InitTypeDef 						GPIO_InitStruct = { 0 };
 
 #if CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ
-
-	HAL_GPIO_WritePin(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin, GPIO_PIN_SET);
-	GPIO_InitStruct.Pin = SPI_SLAVE_IRQ_REQUEST_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, &GPIO_InitStruct);
-
+	gpio_init_pin_mask_as_output(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin_mask, false, GPIO_SPEED_HIGH, GPIO_PULL_UP);
 #endif /* CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ */
 
 #if CONFIG_SPI_SLAVE_CS_IRQ
-
-	gpio_init_as_input(SPI_SLAVE_CHIP_SELECT_GPIO_Port, SPI_SLAVE_CHIP_SELECT_Pin, GPIO_SPEED_HIGH, GPIO_PULL_UP);
 	NVIC_EnableIRQ(EXTI4_15_IRQn);
-
-	/*Configure GPIO pin : LED_Pin */
-	GPIO_InitStruct.Pin = SPI_SLAVE_CHIP_SELECT_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT | GPIO_MODE_IT_RISING_FALLING;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(SPI_SLAVE_CHIP_SELECT_GPIO_Port, &GPIO_InitStruct);
-
+	gpio_init_pin_mask_as_input_interrupt(SPI_SLAVE_CHIP_SELECT_GPIO_Port, SPI_SLAVE_CHIP_SELECT_Pin_mask, GPIO_SPEED_HIGH, GPIO_PULL_UP, true, true);
 #else /* CONFIG_SPI_SLAVE_CS_IRQ */
-
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
-
-
-	/*Configure GPIO pin : LED_Pin */
-	GPIO_InitStruct.Pin = GPIO_PIN_4;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	gpio_init_pin_mask_as_input(SPI_SLAVE_CHIP_SELECT_GPIO_Port, SPI_SLAVE_CHIP_SELECT_Pin_mask, GPIO_SPEED_HIGH, GPIO_PULL_UP);
 #endif /* CONFIG_SPI_SLAVE_CS_IRQ */
-
 
 	MX_SPI1_Init();
 	msz_t200_spi_clear_rx_fifo(&hspi1);
 
 	return rc;
 }
-
-
-
-
