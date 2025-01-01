@@ -32,7 +32,7 @@
 /* Test pins */
 #define CONFIG_TEST_PINS_MAIN							0
 #define CONFIG_TEST_PINS_SPI_SLAVE						0
-#define CONFIG_TEST_PINS_SPI_SLAVE_SS_IRQ				0
+#define CONFIG_TEST_PINS_SPI_SLAVE_SS_IRQ				1
 
 /* SPI Slave */
 

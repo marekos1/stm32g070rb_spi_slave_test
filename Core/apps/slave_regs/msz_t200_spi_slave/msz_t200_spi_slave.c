@@ -611,6 +611,7 @@ msz_rc_t msz_t200_spi_slave_init(void) {
 	msz_rc_t								rc = MSZ_RC_OK;
 
 #if CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ
+	msz_t200_spi_slave_generate_irq(false);
 	gpio_init_pin_mask_as_output(SPI_SLAVE_IRQ_REQUEST_GPIO_Port, SPI_SLAVE_IRQ_REQUEST_Pin_mask, false, GPIO_SPEED_HIGH, GPIO_PULL_UP);
 #endif /* CONFIG_SPI_SLAVE_REGS_GENERATE_IRQ */
 

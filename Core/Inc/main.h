@@ -96,11 +96,11 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LED_Pin 			GPIO_PIN_5
-#define LED_GPIO_Port 		GPIOA
+#define LED_Pin 								GPIO_PIN_5
+#define LED_GPIO_Port 							GPIOA
 
-#define BUTTON_Pin 			GPIO_PIN_13
-#define BUTTON_GPIO_Port 	GPIOC
+#define BUTTON_Pin 								GPIO_PIN_13
+#define BUTTON_GPIO_Port 						GPIOC
 
 
 
@@ -113,17 +113,17 @@ void Error_Handler(void);
 #define TEST3_GPIO_Port 						GPIOA				//Arduino D7
 #define TEST3_Pin_mask							GPIO_PIN_8
 
-#define TEST1_PIN_UP() 				HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin_mask, GPIO_PIN_SET)
-#define TEST1_PIN_DOWN() 			HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin_mask, GPIO_PIN_RESET)
-#define TEST1_PIN_TOGGLE()  	HAL_GPIO_TogglePin(TEST1_GPIO_Port, TEST1_Pin_mask);
+#define TEST1_PIN_UP() 							HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin_mask, GPIO_PIN_SET)
+#define TEST1_PIN_DOWN() 						HAL_GPIO_WritePin(TEST1_GPIO_Port, TEST1_Pin_mask, GPIO_PIN_RESET)
+#define TEST1_PIN_TOGGLE()  					HAL_GPIO_TogglePin(TEST1_GPIO_Port, TEST1_Pin_mask);
 
-#define TEST2_PIN_UP() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin_mask, GPIO_PIN_SET)
-#define TEST2_PIN_DOWN() 		HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin_mask, GPIO_PIN_RESET)
-#define TEST2_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin_mask);
+#define TEST2_PIN_UP() 							HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin_mask, GPIO_PIN_SET)
+#define TEST2_PIN_DOWN() 						HAL_GPIO_WritePin(TEST2_GPIO_Port, TEST2_Pin_mask, GPIO_PIN_RESET)
+#define TEST2_PIN_TOGGLE()						HAL_GPIO_TogglePin(TEST2_GPIO_Port, TEST2_Pin_mask);
 
-#define TEST3_PIN_UP() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin_mask, GPIO_PIN_SET)
-#define TEST3_PIN_DOWN() 		HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin_mask, GPIO_PIN_RESET)
-#define TEST3_PIN_TOGGLE()	HAL_GPIO_TogglePin(TEST3_GPIO_Port, TEST3_Pin_mask);
+#define TEST3_PIN_UP() 							HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin_mask, GPIO_PIN_SET)
+#define TEST3_PIN_DOWN() 						HAL_GPIO_WritePin(TEST3_GPIO_Port, TEST3_Pin_mask, GPIO_PIN_RESET)
+#define TEST3_PIN_TOGGLE()						HAL_GPIO_TogglePin(TEST3_GPIO_Port, TEST3_Pin_mask);
 
 
 
@@ -139,17 +139,17 @@ void Error_Handler(void);
 
 #if CONFIG_TEST_PINS_MAIN
 
-#define MAIN_TEST1_PIN_UP() 		TEST1_PIN_UP()
-#define MAIN_TEST1_PIN_DOWN() 		TEST1_PIN_DOWN()
-#define MAIN_TEST1_PIN_TOGGLE()  	TEST1_PIN_TOGGLE()
+#define MAIN_TEST1_PIN_UP() 					TEST1_PIN_UP()
+#define MAIN_TEST1_PIN_DOWN() 					TEST1_PIN_DOWN()
+#define MAIN_TEST1_PIN_TOGGLE()  				TEST1_PIN_TOGGLE()
 
-#define MAIN_TEST2_PIN_UP() 		TEST2_PIN_UP()
-#define MAIN_TEST2_PIN_DOWN() 		TEST2_PIN_DOWN()
-#define MAIN_TEST2_PIN_TOGGLE()		TEST2_PIN_TOGGLE()
+#define MAIN_TEST2_PIN_UP() 					TEST2_PIN_UP()
+#define MAIN_TEST2_PIN_DOWN() 					TEST2_PIN_DOWN()
+#define MAIN_TEST2_PIN_TOGGLE()					TEST2_PIN_TOGGLE()
 
-#define MAIN_TEST3_PIN_UP() 		TEST3_PIN_UP()
-#define MAIN_TEST3_PIN_DOWN() 		TEST3_PIN_DOWN()
-#define MAIN_TEST3_PIN_TOGGLE()		TEST3_PIN_TOGGLE()
+#define MAIN_TEST3_PIN_UP() 					TEST3_PIN_UP()
+#define MAIN_TEST3_PIN_DOWN() 					TEST3_PIN_DOWN()
+#define MAIN_TEST3_PIN_TOGGLE()					TEST3_PIN_TOGGLE()
 
 #else /* CONFIG_TEST_PINS_MAIN */
 
@@ -169,17 +169,17 @@ void Error_Handler(void);
 
 #if CONFIG_TEST_PINS_SPI_SLAVE
 
-#define SPI_SLAVE_TEST1_PIN_UP() 		TEST1_PIN_UP()
-#define SPI_SLAVE_TEST1_PIN_DOWN() 		TEST1_PIN_DOWN()
-#define SPI_SLAVE_TEST1_PIN_TOGGLE()  	TEST1_PIN_TOGGLE()
+#define SPI_SLAVE_TEST1_PIN_UP() 				TEST1_PIN_UP()
+#define SPI_SLAVE_TEST1_PIN_DOWN() 				TEST1_PIN_DOWN()
+#define SPI_SLAVE_TEST1_PIN_TOGGLE()  			TEST1_PIN_TOGGLE()
 
-#define SPI_SLAVE_TEST2_PIN_UP() 		TEST2_PIN_UP()
-#define SPI_SLAVE_TEST2_PIN_DOWN() 		TEST2_PIN_DOWN()
-#define SPI_SLAVE_TEST2_PIN_TOGGLE()  	TEST2_PIN_TOGGLE()
+#define SPI_SLAVE_TEST2_PIN_UP() 				TEST2_PIN_UP()
+#define SPI_SLAVE_TEST2_PIN_DOWN() 				TEST2_PIN_DOWN()
+#define SPI_SLAVE_TEST2_PIN_TOGGLE()  			TEST2_PIN_TOGGLE()
 
-#define SPI_SLAVE_TEST3_PIN_UP() 		TEST3_PIN_UP()
-#define SPI_SLAVE_TEST3_PIN_DOWN() 		TEST3_PIN_DOWN()
-#define SPI_SLAVE_TEST3_PIN_TOGGLE()  	TEST3_PIN_TOGGLE()
+#define SPI_SLAVE_TEST3_PIN_UP() 				TEST3_PIN_UP()
+#define SPI_SLAVE_TEST3_PIN_DOWN() 				TEST3_PIN_DOWN()
+#define SPI_SLAVE_TEST3_PIN_TOGGLE()  			TEST3_PIN_TOGGLE()
 
 #else /* CONFIG_TEST_PINS_SPI_SLAVE */
 
