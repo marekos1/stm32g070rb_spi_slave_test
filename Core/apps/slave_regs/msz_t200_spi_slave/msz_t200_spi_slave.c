@@ -84,7 +84,7 @@ static uint32_t msz_t200_spi_get_crc32(uint8_t *data) {
 	return crc32;
 }
 
-static HAL_StatusTypeDef my_SPI_WaitFifoStateUntilTimeout(SPI_HandleTypeDef *hspi, uint32_t Fifo, uint32_t State, uint32_t Timeout, uint32_t Tickstart) {
+static HAL_StatusTypeDef msz_t200_spi_wait_fifo_state_until_timeout(SPI_HandleTypeDef *hspi, uint32_t Fifo, uint32_t State, uint32_t Timeout, uint32_t Tickstart) {
 
 	__IO uint32_t							count;
 	uint32_t 								tmp_timeout, tmp_tickstart;
@@ -151,7 +151,7 @@ static HAL_StatusTypeDef my_SPI_WaitFifoStateUntilTimeout(SPI_HandleTypeDef *hsp
 	return HAL_OK;
 }
 
-static HAL_StatusTypeDef my_SPI_WaitFlagStateUntilTimeout(SPI_HandleTypeDef *hspi,
+static HAL_StatusTypeDef msz_t200_spi_wait_flag_state_until_timeout(SPI_HandleTypeDef *hspi,
 														  uint32_t Flag, FlagStatus State, uint32_t Timeout, uint32_t Tickstart) {
 	__IO uint32_t							count;
 	uint32_t 								tmp_timeout, tmp_tickstart;
@@ -206,60 +206,41 @@ static HAL_StatusTypeDef my_SPI_WaitFlagStateUntilTimeout(SPI_HandleTypeDef *hsp
 	return HAL_OK;
 }
 
-static HAL_StatusTypeDef msz_t200_spi_end_txrx_operation(SPI_HandleTypeDef *hspi, uint32_t Timeout, uint32_t Tickstart) {
+static msz_rc_t msz_t200_spi_end_txrx_operation(SPI_HandleTypeDef *hspi) {
 
-	/* Control if the TX fifo is empty */
-	if (my_SPI_WaitFifoStateUntilTimeout(hspi, SPI_FLAG_FTLVL, SPI_FTLVL_EMPTY,	Timeout, Tickstart) != HAL_OK) {
-		SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+	msz_rc_t								rc = MSZ_RC_OK;
+
+	do {
+		/* Control if the TX fifo is empty */
+		if (msz_t200_spi_wait_fifo_state_until_timeout(hspi, SPI_FLAG_FTLVL, SPI_FTLVL_EMPTY, 1, HAL_GetTick()) != HAL_OK) {
+			SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+			__HAL_SPI_DISABLE(hspi);
+			rc = MSZ_RC_ERR_TIMEOUT;
+			break;
+		}
+
+		/* Control the BSY flag */
+		if (msz_t200_spi_wait_flag_state_until_timeout(hspi, SPI_FLAG_BSY, RESET, 1, HAL_GetTick()) != HAL_OK) {
+			SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+			__HAL_SPI_DISABLE(hspi);
+			rc = MSZ_RC_ERR_TIMEOUT;
+			break;
+		}
+
+		/* Control if the RX fifo is empty */
+		if (msz_t200_spi_wait_fifo_state_until_timeout(hspi, SPI_FLAG_FRLVL, SPI_FRLVL_EMPTY, 1, HAL_GetTick()) != HAL_OK) {
+			SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
+			__HAL_SPI_DISABLE(hspi);
+			rc = MSZ_RC_ERR_TIMEOUT;
+			break;
+		}
 		__HAL_SPI_DISABLE(hspi);
-		return HAL_TIMEOUT;
-	}
+	} while (0);
 
-	/* Control the BSY flag */
-	if (my_SPI_WaitFlagStateUntilTimeout(hspi, SPI_FLAG_BSY, RESET, Timeout, Tickstart) != HAL_OK) {
-		SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
-		__HAL_SPI_DISABLE(hspi);
-		return HAL_TIMEOUT;
-	}
-
-	/* Control if the RX fifo is empty */
-	if (my_SPI_WaitFifoStateUntilTimeout(hspi, SPI_FLAG_FRLVL, SPI_FRLVL_EMPTY,	Timeout, Tickstart) != HAL_OK) {
-		SET_BIT(hspi->ErrorCode, HAL_SPI_ERROR_FLAG);
-		__HAL_SPI_DISABLE(hspi);
-		return HAL_TIMEOUT;
-	}
-	__HAL_SPI_DISABLE(hspi);
-
-	return HAL_OK;
+	return rc;
 }
 
-static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, uint32_t *tickstart) {
-
-	HAL_StatusTypeDef 						errorcode = HAL_OK;
-	HAL_SPI_StateTypeDef					tmp_state;
-	uint32_t 								tmp_mode;
-
-	assert_param(IS_SPI_DIRECTION_2LINES(hspi->Init.Direction));
-
-	/* Init tickstart for timeout management*/
-	*tickstart = HAL_GetTick();
-
-	/* Init temporary variables */
-	tmp_state = hspi->State;
-	tmp_mode = hspi->Init.Mode;
-
-
-	if (!((tmp_state == HAL_SPI_STATE_READY) || ((tmp_mode == SPI_MODE_MASTER) && (hspi->Init.Direction == SPI_DIRECTION_2LINES) && (tmp_state == HAL_SPI_STATE_BUSY_RX)))) {
-		errorcode = HAL_BUSY;
-		goto error;
-	}
-
-	/* Don't overwrite in case of HAL_SPI_STATE_BUSY_RX */
-	if (hspi->State != HAL_SPI_STATE_BUSY_RX) {
-		hspi->State = HAL_SPI_STATE_BUSY_TX_RX;
-	}
-
-	error: hspi->State = HAL_SPI_STATE_READY;
+static void msz_t200_spi_start_rxtx_transaction(SPI_HandleTypeDef *hspi) {
 
 	/* Set the Rx Fifo threshold */
 		/* Set fiforxthreshold according the reception data length: 8bit */
@@ -270,8 +251,6 @@ static HAL_StatusTypeDef my_SPI_Start_RxTxTransaction(SPI_HandleTypeDef *hspi, u
 		/* Enable SPI peripheral */
 		__HAL_SPI_ENABLE(hspi);
 	}
-
-	return errorcode;
 }
 
 static msz_rc_t msz_t200_spi_data_transfer(SPI_HandleTypeDef *hspi, const uint8_t *data_write, uint8_t *data_read, const uint32_t data_length, const uint32_t timeout_ms) {
@@ -474,11 +453,11 @@ static msz_rc_t msz_t200_spi_recv_header(SPI_HandleTypeDef *hspi, uint8_t *spi_d
 static msz_rc_t msz_t200_spi_operation(SPI_HandleTypeDef *hspi, bool *is_write_operation) {
 
 	msz_rc_t								rc;
-	uint32_t								spi_data_idx = 0, tickstart, reg_addr;
+	uint32_t								spi_data_idx = 0, reg_addr;
 	uint8_t									spi_data[2 + 6 + 255 * 4 + 4], operation_count;
 
 	SPI_SLAVE_TEST1_PIN_UP();
-	my_SPI_Start_RxTxTransaction(hspi, &tickstart);
+	msz_t200_spi_start_rxtx_transaction(hspi);
 	rc = msz_t200_spi_recv_header(hspi, spi_data, spi_data_idx);
 
 	if (rc == MSZ_RC_OK) {
@@ -500,9 +479,7 @@ static msz_rc_t msz_t200_spi_operation(SPI_HandleTypeDef *hspi, bool *is_write_o
 		}
 //		T_DG_SPISL("Operation %7s Base addr: %8u, number %u", *is_write_operation ? "Write" : "Read", reg_addr, operation_count);
 		if (rc != MSZ_RC_OK) {
-			if (msz_t200_spi_end_txrx_operation(hspi, 1, tickstart) != HAL_OK) {
-				hspi->ErrorCode = HAL_SPI_ERROR_FLAG;
-			}
+			msz_t200_spi_end_txrx_operation(hspi);
 		}
 	}
 
